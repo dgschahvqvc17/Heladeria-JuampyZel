@@ -238,6 +238,8 @@ CREATE TABLE inventario (
         ON UPDATE CASCADE
         ON DELETE RESTRICT,
 
+    -- Un producto solo puede tener un registro
+    -- por sucursal.
     CONSTRAINT uq_inventario_producto_sucursal
         UNIQUE (id_producto, id_sucursal),
 
@@ -418,6 +420,50 @@ CREATE TABLE detalle_pedido (
     INDEX idx_detalle_pedido_pedido (id_pedido),
     INDEX idx_detalle_pedido_producto (id_producto)
 ) ENGINE=InnoDB;
+
+
+-- ============================================================
+-- DATOS INICIALES
+-- ============================================================
+
+-- Roles iniciales mediante usuarios
+-- Contraseñas hasheadas con bcrypt (cost factor 10)
+-- admin123, vendedor123, inventario123
+INSERT INTO usuario
+(nombre, apellido, correo, password, rol)
+VALUES
+(
+    'Administrador',
+    'JuampyZel',
+    'admin@juampyzel.com',
+    '$2a$10$p8HxevdO7f30sXXiDjylFOfO78TSUxNKLudVm3HlJXrgW62DPJHC.',
+    'ADMINISTRADOR'
+),
+(
+    'Carlos',
+    'Vendedor',
+    'vendedor@juampyzel.com',
+    '$2a$10$PR3NEEc.Z.y1HJJmiJQ/4eyYw0QaIsyUs6dAM7jwCtC23GSfg/13e',
+    'VENDEDOR'
+),
+(
+    'Juan',
+    'Inventario',
+    'inventario@juampyzel.com',
+    '$2a$10$j1Bg/089VqiguC4RBinM1eJIYrpsO88Oh4RbE.C.reDAouf96VHvu',
+    'INVENTARIO'
+);
+
+
+-- Categorías iniciales
+INSERT INTO categoria
+(nombre, descripcion)
+VALUES
+('Helados de crema', 'Helados elaborados a base de crema'),
+('Helados de fruta', 'Helados elaborados con diferentes frutas'),
+('Paletas', 'Paletas y helados individuales'),
+('Especiales', 'Productos especiales de JuampyZel');
+
 
 -- ============================================================
 -- VERIFICACIÓN
