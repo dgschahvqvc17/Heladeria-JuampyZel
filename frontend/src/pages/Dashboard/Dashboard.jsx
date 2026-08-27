@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import Usuarios from '../Usuarios/Usuarios';
 
 const HomeIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -98,7 +99,7 @@ const IceCreamIcon = () => (
 
 const navItems = [
     { icon: <HomeIcon />, label: 'Dashboard', path: '/' },
-    { icon: <UsersIcon />, label: 'Usuarios', path: '/usuarios' },
+    { icon: <UsersIcon />, label: 'Usuarios', path: '/usuarios', adminOnly: true },
     { icon: <BoxIcon />, label: 'Productos', path: '/productos' },
     { icon: <StoreIcon />, label: 'Sucursales', path: '/sucursales' },
     { icon: <ShoppingCartIcon />, label: 'Pedidos', path: '/pedidos' },
@@ -112,6 +113,15 @@ export default function Dashboard() {
     const { user, logout } = useAuth();
     const location = useLocation();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+
+    const filteredNavItems = useMemo(() => {
+        return navItems.filter((item) => {
+            if (item.adminOnly && user?.rol !== 'ADMINISTRADOR') {
+                return false;
+            }
+            return true;
+        });
+    }, [user?.rol]);
 
     const getGreeting = () => {
         const hour = new Date().getHours();
@@ -153,7 +163,7 @@ export default function Dashboard() {
 
                     {/* Navigation */}
                     <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-                        {navItems.map((item) => {
+                        {filteredNavItems.map((item) => {
                             const isActive = location.pathname === item.path;
                             return (
                                 <Link
@@ -251,21 +261,24 @@ export default function Dashboard() {
 
                 {/* Content */}
                 <main className="flex-1 p-6">
-                    {/* Empty state */}
-                    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-fade-in">
-                        <div className="relative mb-6">
-                            <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-full blur-3xl scale-150 animate-pulse-glow"></div>
-                            <div className="relative text-primary/40">
-                                <IceCreamIcon />
+                    {location.pathname === '/usuarios' ? (
+                        <Usuarios />
+                    ) : (
+                        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-fade-in">
+                            <div className="relative mb-6">
+                                <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-full blur-3xl scale-150 animate-pulse-glow"></div>
+                                <div className="relative text-primary/40">
+                                    <IceCreamIcon />
+                                </div>
                             </div>
+                            <h3 className="text-2xl font-title font-bold text-text-primary mb-2">
+                                Bienvenido a JuampyZel
+                            </h3>
+                            <p className="text-text-secondary max-w-md">
+                                El panel de control estara disponible cuando se conecte a la base de datos.
+                            </p>
                         </div>
-                        <h3 className="text-2xl font-title font-bold text-text-primary mb-2">
-                            Bienvenido a JuampyZel
-                        </h3>
-                        <p className="text-text-secondary max-w-md">
-                            El panel de control estara disponible cuando se conecte a la base de datos.
-                        </p>
-                    </div>
+                    )}
                 </main>
             </div>
         </div>

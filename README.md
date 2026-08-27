@@ -42,8 +42,9 @@ juampyzel/
 |   |   |-- context/            -> AuthContext (gestion de sesion)
 |   |   |-- pages/Login/        -> Pantalla de inicio de sesion
 |   |   |-- pages/Dashboard/    -> Dashboard tras login
+|   |   |-- pages/Usuarios/     -> Gestion de usuarios (HU02)
 |   |   |-- routes/             -> AppRoutes, ProtectedRoute, PublicRoute
-|   |   |-- services/           -> authService (HTTP calls)
+|   |   |-- services/           -> authService, userService (HTTP calls)
 |   |   |-- App.jsx
 |   |   |-- main.jsx
 |   |   +-- index.css
@@ -59,15 +60,19 @@ juampyzel/
 |   |   |   |-- database.js     -> Pool de conexiones MySQL
 |   |   |   +-- jwt.js          -> Configuracion JWT
 |   |   |-- controllers/
-|   |   |   +-- authController.js -> Login, logout, me
+|   |   |   |-- authController.js -> Login, logout, me
+|   |   |   +-- userController.js -> CRUD de usuarios (HU02)
 |   |   |-- services/
-|   |   |   +-- authService.js    -> Logica de negocio de auth
+|   |   |   |-- authService.js    -> Logica de negocio de auth
+|   |   |   +-- userService.js    -> Logica de negocio de usuarios (HU02)
 |   |   |-- models/
 |   |   |   +-- User.js           -> Consultas a tabla usuario
 |   |   |-- middlewares/
-|   |   |   +-- authMiddleware.js -> Verificacion de JWT
+|   |   |   |-- authMiddleware.js -> Verificacion de JWT
+|   |   |   +-- roleMiddleware.js -> Verificacion de roles (HU02)
 |   |   |-- routes/
-|   |   |   +-- authRoutes.js     -> Endpoints /api/auth/*
+|   |   |   |-- authRoutes.js     -> Endpoints /api/auth/*
+|   |   |   +-- userRoutes.js     -> Endpoints /api/users/* (HU02)
 |   |   |-- app.js              -> Express app + middleware + rutas
 |   |   +-- server.js           -> Punto de entrada
 |   |-- .env                   -> Variables de entorno
@@ -264,6 +269,44 @@ Authorization: Bearer <jwt_token>
 
 ---
 
+## Endpoints de usuarios (HU02)
+
+> Todos los endpoints requieren autenticacion (Bearer token) y rol `ADMINISTRADOR`.
+
+| Metodo | Endpoint | Descripcion |
+|--------|----------|-------------|
+| GET | `/api/users` | Listar todos los usuarios |
+| GET | `/api/users/:id` | Obtener detalle de un usuario |
+| POST | `/api/users` | Registrar nuevo usuario |
+| PUT | `/api/users/:id` | Editar datos de un usuario |
+| PATCH | `/api/users/:id/status` | Activar o desactivar usuario |
+
+**Roles disponibles:**
+
+| Valor | Descripcion |
+|-------|-------------|
+| `ADMINISTRADOR` | Acceso total al sistema |
+| `ENCARGADO_SUCURSAL` | Gestion de sucursal asignada |
+| `VENDEDOR` | Registro de ventas |
+| `INVENTARIO` | Gestion de inventario |
+
+**Ejemplo — Registrar usuario:**
+
+```bash
+curl -X POST http://localhost:5000/api/users \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{
+    "nombre": "Maria",
+    "apellido": "Garcia",
+    "correo": "maria@juampyzel.com",
+    "password": "pass123",
+    "rol": "VENDEDOR"
+  }'
+```
+
+---
+
 ## Base de datos
 
 ### Tablas del sistema
@@ -297,7 +340,7 @@ El archivo `juampyzel_database.sql` contiene:
 | HU | Nombre | Estado |
 |----|--------|--------|
 | **HU01** | Iniciar sesion | Implementada |
-| HU02 | Gestionar usuarios y roles | Pendiente |
+| **HU02** | Gestionar usuarios y roles | Implementada |
 | HU03 | Gestionar productos y categorias | Pendiente |
 | HU04 | Gestionar sucursales | Pendiente |
 | HU05-HU12 | (Sprints 2 y 3) | Pendientes |
