@@ -4,49 +4,39 @@ Este documento define la arquitectura que deben seguir todos los desarrolladores
 
 ## Propósito
 
-JuampyZel es una empresa dedicada a la producción y comercialización de diferentes tipos de helados. El sistema permitirá centralizar y administrar las operaciones de la empresa.
+JuampyZel es una empresa dedicada a la producción y comercialización de helados. El sistema web centraliza y administra las operaciones de la empresa: sucursales, ventas, abastecimiento de tiendas, inventario, clientes, usuarios y roles, y reportes.
 
 ## Tecnologías
 
 ### Frontend
 - React
-- JavaScript
+- JavaScript (ES2022+)
 - HTML5
 - Tailwind CSS
+- Vite
 
 ### Backend
 - Node.js
 - Express.js
+- JavaScript (ES2022+)
 
 ### Base de datos
-- MySQL
+- MySQL (InnoDB)
 
 ## Patrón arquitectónico
 
-El proyecto utiliza una arquitectura **MVC (Model-View-Controller)**:
+MVC con capa adicional de Services:
 
 ```text
-Frontend
-    │ HTTP / API REST
-    ▼
-Backend
-    ├── Routes
-    ├── Controllers
-    ├── Models
-    └── Services
-            │
-            ▼
-        MySQL
+Routes → Controllers → Services → Models → MySQL
 ```
 
 ## Arquitectura general
 
-El sistema se divide en dos aplicaciones:
-
 ```text
 JuampyZel
-├── frontend/    → React
-└── backend/     → Node.js + Express + MVC
+├── frontend/   → React (View + Interacción)
+└── backend/    → Node.js + Express + MVC + MySQL
 ```
 
 ## Estructura del proyecto
@@ -63,7 +53,9 @@ juampyzel/
 │   │   ├── context/
 │   │   ├── routes/
 │   │   ├── utils/
-│   │   └── assets/
+│   │   ├── assets/
+│   │   ├── App.jsx
+│   │   └── main.jsx
 │   ├── public/
 │   └── package.json
 ├── backend/
@@ -95,25 +87,19 @@ juampyzel/
 
 ## Separación de responsabilidades
 
-- **Frontend (React):** Interfaz, formularios, navegación, visualización, interacción del usuario, estado de la interfaz.
+- **Frontend (React):** Interfaz, formularios, navegación, visualización, interacción, estado de UI.
 - **Routes:** Definir endpoints de la API.
-- **Controllers:** Recibir solicitudes HTTP, coordinar operaciones y enviar respuestas.
-- **Services:** Reglas de negocio, procesos y validaciones de negocio.
-- **Models:** Acceso a MySQL, consultas y persistencia.
-- **MySQL:** Almacenar información, relaciones e integridad de datos.
+- **Controllers:** Recibir solicitudes, validar básicamente, llamar al Service, enviar respuestas.
+- **Services:** Lógica de negocio, validaciones de negocio.
+- **Models:** Acceso a MySQL con consultas parametrizadas.
+- **Middlewares:** Autenticación, autorización, manejo de errores.
+- **MySQL:** Almacenamiento, relaciones, integridad.
 
-## Flujo de una solicitud
+## Seguridad
 
-```text
-React → API REST → Controller → Service → Model → MySQL
-MySQL → Model → Service → Controller → HTTP Response → React
-```
-
-## Reglas arquitectónicas
-
-- El frontend **nunca** debe conectarse directamente a MySQL.
-- Las credenciales de MySQL deben almacenarse en variables de entorno.
-- No almacenar contraseñas en texto plano (usar bcrypt).
-- Utilizar consultas parametrizadas.
-- Validar información en el backend, sin confiar en el frontend.
-- Controlar permisos mediante middleware.
+- El frontend nunca se conecta directamente a MySQL.
+- Las contraseñas se almacenan como hashes bcrypt (cost factor 10).
+- Las credenciales MySQL y JWT secrets van en `.env`, nunca en el código.
+- Todas las consultas SQL usan consultas parametrizadas (prevenir SQL injection).
+- La validación de datos se realiza nuevamente en el backend.
+- Los permisos se verifican mediante middleware (`authMiddleware`, `roleMiddleware`).

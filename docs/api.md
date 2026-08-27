@@ -1,14 +1,15 @@
 # API REST — JuampyZel
 
-El backend expone una API REST siguiendo la nomenclatura RESTful.
+El backend expone una API REST bajo la base `/api`.
 
 ## Estructura de respuestas
 
-### Éxito
+### Éxito (200/201)
 
 ```json
 {
     "success": true,
+    "message": "Operación realizada correctamente",
     "data": {}
 }
 ```
@@ -26,24 +27,72 @@ El backend expone una API REST siguiendo la nomenclatura RESTful.
 
 | Código | Significado |
 |--------|-------------|
-| 200 | Operación exitosa. |
-| 201 | Recurso creado. |
-| 400 | Solicitud incorrecta. |
-| 401 | No autenticado. |
-| 403 | Sin permisos. |
-| 404 | Recurso no encontrado. |
-| 409 | Conflicto. |
-| 500 | Error interno. |
+| 200 | OK — Operación exitosa. |
+| 201 | Created — Recurso creado. |
+| 204 | No Content. |
+| 400 | Bad Request — Solicitud incorrecta. |
+| 401 | Unauthorized — No autenticado. |
+| 403 | Forbidden — Sin permisos. |
+| 404 | Not Found — Recurso no encontrado. |
+| 409 | Conflict — Conflicto. |
+| 422 | Validation Error — Error de validación. |
+| 500 | Internal Server Error. |
+
+## Autenticación
+
+### Iniciar sesión
+
+```
+POST /api/auth/login
+```
+
+**Body:**
+
+```json
+{
+    "correo": "admin@juampyzel.com",
+    "password": "admin123"
+}
+```
+
+**Respuesta 200:**
+
+```json
+{
+    "success": true,
+    "message": "Inicio de sesión exitoso.",
+    "data": {
+        "token": "<jwt_token>",
+        "user": {
+            "id": 1,
+            "nombre": "Administrador",
+            "apellido": "JuampyZel",
+            "correo": "admin@juampyzel.com",
+            "rol": "ADMINISTRADOR"
+        }
+    }
+}
+```
+
+### Cerrar sesión
+
+```
+POST /api/auth/logout
+```
+
+**Headers:** `Authorization: Bearer <token>`
+
+### Obtener usuario actual
+
+```
+GET /api/auth/me
+```
+
+**Headers:** `Authorization: Bearer <token>`
+
+---
 
 ## Endpoints
-
-### Autenticación
-
-```text
-POST   /api/auth/login
-POST   /api/auth/logout
-POST   /api/auth/register
-```
 
 ### Productos
 
@@ -55,6 +104,16 @@ PUT    /api/products/:id
 DELETE /api/products/:id
 ```
 
+### Categorías
+
+```text
+GET    /api/categories
+GET    /api/categories/:id
+POST   /api/categories
+PUT    /api/categories/:id
+DELETE /api/categories/:id
+```
+
 ### Sucursales
 
 ```text
@@ -62,6 +121,7 @@ GET    /api/branches
 GET    /api/branches/:id
 POST   /api/branches
 PUT    /api/branches/:id
+DELETE /api/branches/:id
 ```
 
 ### Tiendas
@@ -71,6 +131,17 @@ GET    /api/stores
 GET    /api/stores/:id
 POST   /api/stores
 PUT    /api/stores/:id
+DELETE /api/stores/:id
+```
+
+### Clientes
+
+```text
+GET    /api/customers
+GET    /api/customers/:id
+POST   /api/customers
+PUT    /api/customers/:id
+DELETE /api/customers/:id
 ```
 
 ### Pedidos
@@ -107,3 +178,13 @@ POST   /api/users
 PUT    /api/users/:id
 DELETE /api/users/:id
 ```
+
+## Autenticación en endpoints protegidos
+
+Los endpoints que requieren autenticación deben incluir el header:
+
+```
+Authorization: Bearer <jwt_token>
+```
+
+El token expira en 24 horas por defecto.
