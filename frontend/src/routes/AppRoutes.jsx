@@ -13,6 +13,7 @@ export default function AppRoutes() {
 
             <Route element={<ProtectedRoute />}>
                 <Route path="/" element={<Dashboard />} />
+                <Route path="/usuarios" element={<Dashboard />} />
             </Route>
         </Routes>
     );
