@@ -7,6 +7,7 @@ import Usuarios from '../pages/Usuarios/Usuarios';
 import Sucursales from '../pages/Sucursales/Sucursales';
 import Clientes from '../pages/Clientes/Clientes';
 import Productos from '../pages/Productos/Productos';
+import Ventas from '../pages/Ventas/Ventas';
 
 export default function AppRoutes() {
     return (
@@ -22,6 +23,7 @@ export default function AppRoutes() {
                     <Route path="/sucursales" element={<Sucursales />} />
                     <Route path="/clientes" element={<Clientes />} />
                     <Route path="/productos" element={<Productos />} />
+                    <Route path="/ventas" element={<Ventas />} />
                 </Route>
             </Route>
         </Routes>

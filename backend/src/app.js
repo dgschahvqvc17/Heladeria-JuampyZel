@@ -17,6 +17,7 @@ app.use('/api/branches', require('./routes/branchRoutes'));
 app.use('/api/customers', require('./routes/customerRoutes'));
 app.use('/api/categories', require('./routes/categoryRoutes'));
 app.use('/api/products', require('./routes/productRoutes'));
+app.use('/api/sales', require('./routes/saleRoutes'));
 
 // Middleware de manejo de errores
 app.use((err, req, res, next) => {

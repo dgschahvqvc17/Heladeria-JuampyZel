@@ -45,9 +45,10 @@ juampyzel/
 |   |   |-- pages/Usuarios/     -> Gestion de usuarios (HU02)
 |   |   |-- pages/Sucursales/   -> Gestion de sucursales (HU04)
 |   |   |-- pages/Clientes/     -> Gestion de clientes (HU05)
+|   |   |-- pages/Ventas/       -> Registro de ventas y punto de venta (HU07)
 |   |   |-- pages/Productos/    -> Gestion de productos y categorias (HU03)
 |   |   |-- routes/             -> AppRoutes, ProtectedRoute, PublicRoute
-|   |   |-- services/           -> authService, userService, branchService, customerService, productService, categoryService (HTTP calls)
+|   |   |-- services/           -> authService, userService, branchService, customerService, productService, categoryService, saleService (HTTP calls)
 |   |   |-- App.jsx
 |   |   |-- main.jsx
 |   |   +-- index.css
@@ -68,21 +69,24 @@ juampyzel/
 |   |   |   |-- userController.js -> CRUD de usuarios (HU02)
 |   |   |   |-- branchController.js -> CRUD de sucursales (HU04)
 |   |   |   |-- customerController.js -> CRUD de clientes (HU05)
-|   |   |   +-- productController.js -> CRUD de productos (HU03)
-|   |   |   +-- categoryController.js -> CRUD de categorias (HU03)
+|   |   |   |-- productController.js -> CRUD de productos (HU03)
+|   |   |   |-- categoryController.js -> CRUD de categorias (HU03)
+|   |   |   +-- saleController.js  -> Registro y consulta de ventas (HU07)
 |   |   |-- services/
 |   |   |   |-- authService.js    -> Logica de negocio de auth
 |   |   |   |-- userService.js    -> Logica de negocio de usuarios (HU02)
 |   |   |   |-- branchService.js  -> Logica de negocio de sucursales (HU04)
 |   |   |   |-- customerService.js -> Logica de negocio de clientes (HU05)
-|   |   |   +-- productService.js  -> Logica de negocio de productos (HU03)
-|   |   |   +-- categoryService.js -> Logica de negocio de categorias (HU03)
+|   |   |   |-- productService.js  -> Logica de negocio de productos (HU03)
+|   |   |   |-- categoryService.js -> Logica de negocio de categorias (HU03)
+|   |   |   +-- saleService.js     -> Logica de negocio de ventas (HU07)
 |   |   |-- models/
 |   |   |   |-- User.js           -> Consultas a tabla usuario
 |   |   |   |-- Branch.js         -> Consultas a tabla sucursal
 |   |   |   |-- Customer.js       -> Consultas a tabla cliente
-|   |   |   +-- Product.js        -> Consultas a tabla producto
-|   |   |   +-- Category.js       -> Consultas a tabla categoria
+|   |   |   |-- Product.js        -> Consultas a tabla producto
+|   |   |   |-- Category.js       -> Consultas a tabla categoria
+|   |   |   +-- Sale.js           -> Consultas a tablas venta/detalle_venta (HU07)
 |   |   |-- middlewares/
 |   |   |   |-- authMiddleware.js -> Verificacion de JWT
 |   |   |   +-- roleMiddleware.js -> Verificacion de roles (HU02)
@@ -93,8 +97,9 @@ juampyzel/
 |   |   |   |-- userRoutes.js     -> Endpoints /api/users/* (HU02)
 |   |   |   |-- branchRoutes.js   -> Endpoints /api/branches/* (HU04)
 |   |   |   |-- customerRoutes.js -> Endpoints /api/customers/* (HU05)
-|   |   |   +-- productRoutes.js  -> Endpoints /api/products/* (HU03)
-|   |   |   +-- categoryRoutes.js -> Endpoints /api/categories/* (HU03)
+|   |   |   |-- productRoutes.js  -> Endpoints /api/products/* (HU03)
+|   |   |   |-- categoryRoutes.js -> Endpoints /api/categories/* (HU03)
+|   |   |   +-- saleRoutes.js     -> Endpoints /api/sales/* (HU07)
 |   |   |-- app.js              -> Express app + middleware + rutas
 |   |   +-- server.js           -> Punto de entrada (ejecuta migraciones)
 |   |-- .env                   -> Variables de entorno
@@ -479,6 +484,43 @@ curl -X POST http://localhost:5000/api/categories \
 
 ---
 
+## Endpoints de ventas (HU07)
+
+> Todos los endpoints requieren autenticacion (Bearer token) y rol `ADMINISTRADOR`, `ENCARGADO_SUCURSAL` o `VENDEDOR`.
+
+| Metodo | Endpoint | Descripcion |
+|--------|----------|-------------|
+| GET | `/api/sales` | Listar todas las ventas realizadas |
+| GET | `/api/sales?branch=:id` | Listar ventas de una sucursal especifica |
+| GET | `/api/sales/products?sucursal=:id` | Listar productos activos con su stock disponible en una sucursal |
+| GET | `/api/sales/:id` | Obtener detalle de una venta (incluye productos) |
+| POST | `/api/sales` | Registrar una nueva venta |
+
+**Ejemplo — Registrar venta:**
+
+```bash
+curl -X POST http://localhost:5000/api/sales \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{
+    "id_cliente": 2,
+    "id_sucursal": 1,
+    "detalles": [
+      { "id_producto": 1, "cantidad": 2 },
+      { "id_producto": 3, "cantidad": 1 }
+    ]
+  }'
+```
+
+El backend:
+- Valida que la sucursal exista y este activa.
+- Valida que los productos esten activos y exista stock suficiente en la sucursal.
+- Calcula automaticamente el subtotal de cada linea y el total de la venta.
+- Registra la venta, su detalle y actualiza (descuenta) el stock en la tabla `inventario`, todo dentro de una transaccion.
+- Registra automaticamente la fecha/hora y el usuario que realiza la venta.
+
+---
+
 ## Migraciones de base de datos
 
 El backend incluye un sistema de **migraciones versionadas** que se ejecuta automaticamente al iniciar el servidor:
@@ -533,7 +575,8 @@ El archivo `juampyzel_database.sql` contiene:
 | **HU03** | Gestionar productos y categorias | Implementada |
 | **HU04** | Gestionar sucursales | Implementada |
 | **HU05** | Gestionar clientes | Implementada |
-| HU06-HU12 | (Sprints 2 y 3) | Pendientes |
+| **HU07** | Registrar venta | Implementada |
+| HU06, HU08-HU12 | (Sprints 2 y 3) | Pendientes |
 
 ---
 
