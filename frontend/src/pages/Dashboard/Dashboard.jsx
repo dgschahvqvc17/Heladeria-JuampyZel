@@ -74,6 +74,14 @@ const BarChartIcon = () => (
     </svg>
 );
 
+const StoreBagIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+        <line x1="3" y1="6" x2="21" y2="6"></line>
+        <path d="M16 10a4 4 0 0 1-8 0"></path>
+    </svg>
+);
+
 const SettingsIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="3" />
@@ -110,6 +118,8 @@ const navItems = [
     { icon: <UsersIcon />, label: 'Usuarios', path: '/usuarios', roles: ['ADMINISTRADOR'] },
     { icon: <BoxIcon />, label: 'Productos', path: '/productos', roles: ['ADMINISTRADOR', 'ENCARGADO_SUCURSAL', 'VENDEDOR', 'INVENTARIO'] },
     { icon: <StoreIcon />, label: 'Sucursales', path: '/sucursales', roles: ['ADMINISTRADOR', 'ENCARGADO_SUCURSAL'] },
+    { icon: <StoreBagIcon />, label: 'Tiendas', path: '/tiendas', roles: ['ADMINISTRADOR', 'INVENTARIO'] },
+    { icon: <ShoppingCartIcon />, label: 'Pedidos', path: '/pedidos', roles: ['ADMINISTRADOR', 'INVENTARIO'] },
     { icon: <CustomersIcon />, label: 'Clientes', path: '/clientes', roles: ['ADMINISTRADOR', 'ENCARGADO_SUCURSAL', 'VENDEDOR', 'INVENTARIO'] },
     { icon: <ShoppingCartIcon />, label: 'Pedidos', path: '/pedidos', roles: ['ADMINISTRADOR', 'INVENTARIO'] },
     { icon: <DollarIcon />, label: 'Ventas', path: '/ventas', roles: ['ADMINISTRADOR', 'ENCARGADO_SUCURSAL', 'VENDEDOR'] },
