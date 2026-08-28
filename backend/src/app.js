@@ -14,6 +14,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/branches', require('./routes/branchRoutes'));
+app.use('/api/customers', require('./routes/customerRoutes'));
 
 // Middleware de manejo de errores
 app.use((err, req, res, next) => {

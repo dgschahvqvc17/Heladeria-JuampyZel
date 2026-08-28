@@ -5,6 +5,7 @@ import Login from '../pages/Login/Login';
 import Dashboard from '../pages/Dashboard/Dashboard';
 import Usuarios from '../pages/Usuarios/Usuarios';
 import Sucursales from '../pages/Sucursales/Sucursales';
+import Clientes from '../pages/Clientes/Clientes';
 
 export default function AppRoutes() {
     return (
@@ -18,6 +19,7 @@ export default function AppRoutes() {
                     <Route index element={<div />} />
                     <Route path="/usuarios" element={<Usuarios />} />
                     <Route path="/sucursales" element={<Sucursales />} />
+                    <Route path="/clientes" element={<Clientes />} />
                 </Route>
             </Route>
         </Routes>

@@ -44,8 +44,9 @@ juampyzel/
 |   |   |-- pages/Dashboard/    -> Dashboard tras login
 |   |   |-- pages/Usuarios/     -> Gestion de usuarios (HU02)
 |   |   |-- pages/Sucursales/   -> Gestion de sucursales (HU04)
+|   |   |-- pages/Clientes/     -> Gestion de clientes (HU05)
 |   |   |-- routes/             -> AppRoutes, ProtectedRoute, PublicRoute
-|   |   |-- services/           -> authService, userService, branchService (HTTP calls)
+|   |   |-- services/           -> authService, userService, branchService, customerService (HTTP calls)
 |   |   |-- App.jsx
 |   |   |-- main.jsx
 |   |   +-- index.css
@@ -64,14 +65,17 @@ juampyzel/
 |   |   |-- controllers/
 |   |   |   |-- authController.js -> Login, logout, me
 |   |   |   |-- userController.js -> CRUD de usuarios (HU02)
-|   |   |   +-- branchController.js -> CRUD de sucursales (HU04)
+|   |   |   |-- branchController.js -> CRUD de sucursales (HU04)
+|   |   |   +-- customerController.js -> CRUD de clientes (HU05)
 |   |   |-- services/
 |   |   |   |-- authService.js    -> Logica de negocio de auth
 |   |   |   |-- userService.js    -> Logica de negocio de usuarios (HU02)
-|   |   |   +-- branchService.js  -> Logica de negocio de sucursales (HU04)
+|   |   |   |-- branchService.js  -> Logica de negocio de sucursales (HU04)
+|   |   |   +-- customerService.js -> Logica de negocio de clientes (HU05)
 |   |   |-- models/
 |   |   |   |-- User.js           -> Consultas a tabla usuario
-|   |   |   +-- Branch.js         -> Consultas a tabla sucursal
+|   |   |   |-- Branch.js         -> Consultas a tabla sucursal
+|   |   |   +-- Customer.js       -> Consultas a tabla cliente
 |   |   |-- middlewares/
 |   |   |   |-- authMiddleware.js -> Verificacion de JWT
 |   |   |   +-- roleMiddleware.js -> Verificacion de roles (HU02)
@@ -80,7 +84,8 @@ juampyzel/
 |   |   |-- routes/
 |   |   |   |-- authRoutes.js     -> Endpoints /api/auth/*
 |   |   |   |-- userRoutes.js     -> Endpoints /api/users/* (HU02)
-|   |   |   +-- branchRoutes.js   -> Endpoints /api/branches/* (HU04)
+|   |   |   |-- branchRoutes.js   -> Endpoints /api/branches/* (HU04)
+|   |   |   +-- customerRoutes.js -> Endpoints /api/customers/* (HU05)
 |   |   |-- app.js              -> Express app + middleware + rutas
 |   |   +-- server.js           -> Punto de entrada (ejecuta migraciones)
 |   |-- .env                   -> Variables de entorno
@@ -354,6 +359,45 @@ curl -X POST http://localhost:5000/api/branches \
 
 ---
 
+## Endpoints de clientes (HU05)
+
+> Todos los endpoints requieren autenticacion (Bearer token). Crear y editar requiere rol `ADMINISTRADOR` o `VENDEDOR`; consultar esta disponible para todos los roles autenticados.
+
+| Metodo | Endpoint | Descripcion |
+|--------|----------|-------------|
+| GET | `/api/customers` | Listar todos los clientes |
+| GET | `/api/customers?q=termino` | Buscar clientes por nombre, apellido, correo o telefono |
+| GET | `/api/customers/:id` | Obtener detalle de un cliente |
+| POST | `/api/customers` | Registrar nuevo cliente |
+| PUT | `/api/customers/:id` | Editar datos de un cliente |
+
+**Campos del cliente:**
+
+| Campo | Descripcion |
+|-------|-------------|
+| `nombres` | Nombres del cliente (obligatorio, minimo 2 caracteres) |
+| `apellidos` | Apellidos del cliente (obligatorio, minimo 2 caracteres) |
+| `telefono` | Telefono de contacto |
+| `correo` | Correo electronico (unico, formato valido) |
+| `direccion` | Direccion del cliente |
+
+**Ejemplo — Registrar cliente:**
+
+```bash
+curl -X POST http://localhost:5000/api/customers \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{
+    "nombres": "Maria",
+    "apellidos": "Garcia",
+    "telefono": "70012345",
+    "correo": "maria@juampyzel.com",
+    "direccion": "Av. Central 100"
+  }'
+```
+
+---
+
 ## Migraciones de base de datos
 
 El backend incluye un sistema de **migraciones versionadas** que se ejecuta automaticamente al iniciar el servidor:
@@ -407,7 +451,8 @@ El archivo `juampyzel_database.sql` contiene:
 | **HU02** | Gestionar usuarios y roles | Implementada |
 | HU03 | Gestionar productos y categorias | Pendiente |
 | **HU04** | Gestionar sucursales | Implementada |
-| HU05-HU12 | (Sprints 2 y 3) | Pendientes |
+| **HU05** | Gestionar clientes | Implementada |
+| HU06-HU12 | (Sprints 2 y 3) | Pendientes |
 
 ---
 
