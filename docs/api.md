@@ -157,9 +157,13 @@ PUT    /api/orders/:id
 
 ```text
 GET    /api/sales
+GET    /api/sales?branch=:id
+GET    /api/sales/products?sucursal=:id
 GET    /api/sales/:id
 POST   /api/sales
 ```
+
+El registro de venta (`POST /api/sales`) valida la sucursal, los productos y el stock disponible, calcula el total, y actualiza el inventario dentro de una transacción. Roles permitidos: `ADMINISTRADOR`, `ENCARGADO_SUCURSAL`, `VENDEDOR`.
 
 ### Inventario
 
