@@ -17,7 +17,7 @@ El sistema utiliza **MySQL 8.0** como sistema de gestión de base de datos.
 | Usuario | `usuario` | Usuarios del sistema con autenticación. Incluye `rol` (ENUM) y `estado`. |
 | Categoría | `categoria` | Clasificación de productos. |
 | Producto | `producto` | Helados y productos de la heladería. |
-| Sucursal | `sucursal` | Locales físicos de venta. |
+| Sucursal | `sucursal` | Locales físicos de venta. Cada sucursal tiene un responsable (`id_responsable`) que referencia a un usuario con rol `ENCARGADO_SUCURSAL`. Un encargado solo puede estar a cargo de una única sucursal. |
 | Cliente | `cliente` | Clientes que compran en sucursales. |
 | Tienda | `tienda` | Negocios externos que solicitan abastecimiento. |
 | Inventario | `inventario` | Stock de productos por sucursal. |
@@ -44,6 +44,8 @@ Las contraseñas están hasheadas con **bcrypt** (cost factor 10).
 | `admin@juampyzel.com` | `admin123` | ADMINISTRADOR |
 | `vendedor@juampyzel.com` | `vendedor123` | VENDEDOR |
 | `inventario@juampyzel.com` | `inventario123` | INVENTARIO |
+| `encargado@juampyzel.com` | `encargado123` | ENCARGADO_SUCURSAL |
+| `encargado2@juampyzel.com` | `encargado2_123` | ENCARGADO_SUCURSAL |
 
 ## Configuración de conexión
 

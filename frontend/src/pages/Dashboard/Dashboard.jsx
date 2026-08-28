@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import Usuarios from '../Usuarios/Usuarios';
 
 const HomeIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -261,9 +260,7 @@ export default function Dashboard() {
 
                 {/* Content */}
                 <main className="flex-1 p-6">
-                    {location.pathname === '/usuarios' ? (
-                        <Usuarios />
-                    ) : (
+                    {location.pathname === '/' ? (
                         <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-fade-in">
                             <div className="relative mb-6">
                                 <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-full blur-3xl scale-150 animate-pulse-glow"></div>
@@ -278,6 +275,8 @@ export default function Dashboard() {
                                 El panel de control estara disponible cuando se conecte a la base de datos.
                             </p>
                         </div>
+                    ) : (
+                        <Outlet />
                     )}
                 </main>
             </div>

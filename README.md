@@ -43,8 +43,9 @@ juampyzel/
 |   |   |-- pages/Login/        -> Pantalla de inicio de sesion
 |   |   |-- pages/Dashboard/    -> Dashboard tras login
 |   |   |-- pages/Usuarios/     -> Gestion de usuarios (HU02)
+|   |   |-- pages/Sucursales/   -> Gestion de sucursales (HU04)
 |   |   |-- routes/             -> AppRoutes, ProtectedRoute, PublicRoute
-|   |   |-- services/           -> authService, userService (HTTP calls)
+|   |   |-- services/           -> authService, userService, branchService (HTTP calls)
 |   |   |-- App.jsx
 |   |   |-- main.jsx
 |   |   +-- index.css
@@ -55,26 +56,33 @@ juampyzel/
 |   |-- tailwind.config.js
 |   +-- postcss.config.js
 |-- backend/                  -> Node.js + Express + MySQL
+|   |-- migrations/            -> Migraciones SQL versionadas
 |   |-- src/
 |   |   |-- config/
 |   |   |   |-- database.js     -> Pool de conexiones MySQL
 |   |   |   +-- jwt.js          -> Configuracion JWT
 |   |   |-- controllers/
 |   |   |   |-- authController.js -> Login, logout, me
-|   |   |   +-- userController.js -> CRUD de usuarios (HU02)
+|   |   |   |-- userController.js -> CRUD de usuarios (HU02)
+|   |   |   +-- branchController.js -> CRUD de sucursales (HU04)
 |   |   |-- services/
 |   |   |   |-- authService.js    -> Logica de negocio de auth
-|   |   |   +-- userService.js    -> Logica de negocio de usuarios (HU02)
+|   |   |   |-- userService.js    -> Logica de negocio de usuarios (HU02)
+|   |   |   +-- branchService.js  -> Logica de negocio de sucursales (HU04)
 |   |   |-- models/
-|   |   |   +-- User.js           -> Consultas a tabla usuario
+|   |   |   |-- User.js           -> Consultas a tabla usuario
+|   |   |   +-- Branch.js         -> Consultas a tabla sucursal
 |   |   |-- middlewares/
 |   |   |   |-- authMiddleware.js -> Verificacion de JWT
 |   |   |   +-- roleMiddleware.js -> Verificacion de roles (HU02)
+|   |   |-- utils/
+|   |   |   +-- migrations.js     -> Runner de migraciones
 |   |   |-- routes/
 |   |   |   |-- authRoutes.js     -> Endpoints /api/auth/*
-|   |   |   +-- userRoutes.js     -> Endpoints /api/users/* (HU02)
+|   |   |   |-- userRoutes.js     -> Endpoints /api/users/* (HU02)
+|   |   |   +-- branchRoutes.js   -> Endpoints /api/branches/* (HU04)
 |   |   |-- app.js              -> Express app + middleware + rutas
-|   |   +-- server.js           -> Punto de entrada
+|   |   +-- server.js           -> Punto de entrada (ejecuta migraciones)
 |   |-- .env                   -> Variables de entorno
 |   +-- package.json
 |-- database/
@@ -221,6 +229,8 @@ http://localhost:5173
 | Correo | Contrasena | Rol |
 |--------|-----------|-----|
 | `admin@juampyzel.com` | `admin123` | ADMINISTRADOR |
+| `encargado@juampyzel.com` | `encargado123` | ENCARGADO_SUCURSAL |
+| `encargado2@juampyzel.com` | `encargado123` | ENCARGADO_SUCURSAL |
 | `vendedor@juampyzel.com` | `vendedor123` | VENDEDOR |
 | `inventario@juampyzel.com` | `inventario123` | INVENTARIO |
 
@@ -307,6 +317,60 @@ curl -X POST http://localhost:5000/api/users \
 
 ---
 
+## Endpoints de sucursales (HU04)
+
+> Los endpoints de consulta requieren autenticacion (Bearer token). Crear, editar y cambiar estado requieren rol `ADMINISTRADOR`.
+
+| Metodo | Endpoint | Descripcion |
+|--------|----------|-------------|
+| GET | `/api/branches` | Listar todas las sucursales |
+| GET | `/api/branches/managers/disponibles` | Listar usuarios `ENCARGADO_SUCURSAL` y su sucursal asignada |
+| GET | `/api/branches/:id` | Obtener detalle de una sucursal |
+| POST | `/api/branches` | Registrar nueva sucursal |
+| PUT | `/api/branches/:id` | Editar datos de una sucursal |
+| PATCH | `/api/branches/:id/status` | Activar o desactivar sucursal |
+
+### Responsable de sucursal
+
+Al registrar o editar una sucursal, el campo `id_responsable` referencia a un usuario con rol `ENCARGADO_SUCURSAL`:
+
+- Solo se muestran los usuarios con rol `ENCARGADO_SUCURSAL`, presentando su **nombre y apellido**.
+- Un encargado de sucursal **solo puede estar a cargo de una unica sucursal** (constraint `UNIQUE` en la base de datos).
+- El backend valida que el responsable exista, este activo y tenga el rol correcto.
+
+**Ejemplo — Registrar sucursal:**
+
+```bash
+curl -X POST http://localhost:5000/api/branches \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{
+    "nombre": "Sucursal Centro",
+    "direccion": "Av. Principal 123",
+    "telefono": "7485961",
+    "id_responsable": 6
+  }'
+```
+
+---
+
+## Migraciones de base de datos
+
+El backend incluye un sistema de **migraciones versionadas** que se ejecuta automaticamente al iniciar el servidor:
+
+- Cada migracion es un archivo `.sql` en `backend/migrations/`.
+- Se registran en la tabla `schema_migrations` y solo se aplican las pendientes.
+- Para anadir un cambio de esquema, crea un nuevo archivo `backend/migrations/<fecha>_<nombre>.sql`.
+
+```text
+backend/
+|-- migrations/
+|   +-- 202608270001_add_responsable_fk.sql
++-- src/utils/migrations.js   -> Runner de migraciones
+```
+
+---
+
 ## Base de datos
 
 ### Tablas del sistema
@@ -342,7 +406,7 @@ El archivo `juampyzel_database.sql` contiene:
 | **HU01** | Iniciar sesion | Implementada |
 | **HU02** | Gestionar usuarios y roles | Implementada |
 | HU03 | Gestionar productos y categorias | Pendiente |
-| HU04 | Gestionar sucursales | Pendiente |
+| **HU04** | Gestionar sucursales | Implementada |
 | HU05-HU12 | (Sprints 2 y 3) | Pendientes |
 
 ---

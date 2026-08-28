@@ -6,7 +6,7 @@
 USE juampyzel;
 
 -- Usuarios iniciales
--- Contraseñas por defecto: admin123, vendedor123, inventario123
+-- Contraseñas por defecto: admin123, vendedor123, inventario123, encargado123, encargado2_123
 INSERT INTO usuario
 (nombre, apellido, correo, password, rol)
 VALUES
@@ -30,6 +30,20 @@ VALUES
     'inventario@juampyzel.com',
     '$2a$10$j1Bg/089VqiguC4RBinM1eJIYrpsO88Oh4RbE.C.reDAouf96VHvu',
     'INVENTARIO'
+),
+(
+    'Lucia',
+    'Encargada',
+    'encargado@juampyzel.com',
+    '$2a$10$x5s1Czhd33dbMyNqwCgngeA3V5ICI6SFwyzuuIKvPzRwhqEnoGixC',
+    'ENCARGADO_SUCURSAL'
+),
+(
+    'Miguel',
+    'Encargado',
+    'encargado2@juampyzel.com',
+    '$2a$10$x5s1Czhd33dbMyNqwCgngeA3V5ICI6SFwyzuuIKvPzRwhqEnoGixC',
+    'ENCARGADO_SUCURSAL'
 );
 
 -- Categorías iniciales

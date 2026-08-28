@@ -110,20 +110,33 @@ CREATE TABLE sucursal (
     nombre VARCHAR(100) NOT NULL,
     direccion VARCHAR(200) NOT NULL,
     telefono VARCHAR(20),
-    responsable VARCHAR(100),
+    id_responsable INT UNSIGNED NULL,
     estado BOOLEAN NOT NULL DEFAULT TRUE,
 
     CONSTRAINT pk_sucursal
         PRIMARY KEY (id_sucursal),
 
+    CONSTRAINT fk_sucursal_responsable
+        FOREIGN KEY (id_responsable)
+        REFERENCES usuario(id_usuario)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
+
     CONSTRAINT uq_sucursal_nombre
         UNIQUE (nombre),
+
+    -- Un encargado de sucursal solo puede estar
+    -- a cargo de una única sucursal.
+    CONSTRAINT uq_sucursal_responsable
+        UNIQUE (id_responsable),
 
     CONSTRAINT chk_sucursal_nombre
         CHECK (CHAR_LENGTH(TRIM(nombre)) >= 2),
 
     CONSTRAINT chk_sucursal_direccion
-        CHECK (CHAR_LENGTH(TRIM(direccion)) >= 5)
+        CHECK (CHAR_LENGTH(TRIM(direccion)) >= 5),
+
+    INDEX idx_sucursal_responsable (id_responsable)
 ) ENGINE=InnoDB;
 
 
@@ -428,7 +441,7 @@ CREATE TABLE detalle_pedido (
 
 -- Roles iniciales mediante usuarios
 -- Contraseñas hasheadas con bcrypt (cost factor 10)
--- admin123, vendedor123, inventario123
+-- admin123, vendedor123, inventario123, encargado123, encargado2_123
 INSERT INTO usuario
 (nombre, apellido, correo, password, rol)
 VALUES
@@ -452,6 +465,20 @@ VALUES
     'inventario@juampyzel.com',
     '$2a$10$j1Bg/089VqiguC4RBinM1eJIYrpsO88Oh4RbE.C.reDAouf96VHvu',
     'INVENTARIO'
+),
+(
+    'Lucia',
+    'Encargada',
+    'encargado@juampyzel.com',
+    '$2a$10$x5s1Czhd33dbMyNqwCgngeA3V5ICI6SFwyzuuIKvPzRwhqEnoGixC',
+    'ENCARGADO_SUCURSAL'
+),
+(
+    'Miguel',
+    'Encargado',
+    'encargado2@juampyzel.com',
+    '$2a$10$x5s1Czhd33dbMyNqwCgngeA3V5ICI6SFwyzuuIKvPzRwhqEnoGixC',
+    'ENCARGADO_SUCURSAL'
 );
 
 

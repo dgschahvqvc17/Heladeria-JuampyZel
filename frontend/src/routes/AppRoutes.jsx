@@ -14,9 +14,11 @@ export default function AppRoutes() {
             </Route>
 
             <Route element={<ProtectedRoute />}>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/usuarios" element={<Usuarios />} /> 
-                <Route path="/sucursales" element={<Sucursales />} />
+                <Route element={<Dashboard />}>
+                    <Route index element={<div />} />
+                    <Route path="/usuarios" element={<Usuarios />} />
+                    <Route path="/sucursales" element={<Sucursales />} />
+                </Route>
             </Route>
         </Routes>
     );

@@ -46,3 +46,13 @@ export async function toggleBranchStatus(id) {
     if (!response.ok) throw new Error(data.message || 'Error al cambiar estado.');
     return data;
 }
+
+export async function getAvailableManagers() {
+    const response = await fetch(`${API_URL}/branches/managers/disponibles`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || 'Error al obtener los encargados disponibles.');
+    return data;
+}

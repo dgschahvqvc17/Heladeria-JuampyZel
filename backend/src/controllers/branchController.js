@@ -10,6 +10,15 @@ class BranchController {
         }
     }
 
+    static async getAvailableManagers(req, res) {
+        try {
+            const managers = await BranchService.getAvailableManagers();
+            res.status(200).json({ success: true, data: managers });
+        } catch (error) {
+            res.status(500).json({ success: false, message: error.message || 'Error al obtener los encargados disponibles.' });
+        }
+    }
+
     static async getById(req, res) {
         try {
             const branch = await BranchService.getById(req.params.id);

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { getBranches, createBranch, updateBranch, toggleBranchStatus } from '../../services/branchService';
+import { getBranches, createBranch, updateBranch, toggleBranchStatus, getAvailableManagers } from '../../services/branchService';
 
 // Reutilizamos la iconografía limpia en SVG
 const SearchIcon = () => (
@@ -18,10 +18,11 @@ const EyeIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
 );
 
-const EMPTY_FORM = { nombre: '', direccion: '', telefono: '', responsable: '' };
+const EMPTY_FORM = { nombre: '', direccion: '', telefono: '', id_responsable: '' };
 
 export default function Sucursales() {
     const [branches, setBranches] = useState([]);
+    const [managers, setManagers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [showForm, setShowForm] = useState(false);
@@ -43,7 +44,20 @@ export default function Sucursales() {
         }
     };
 
+    const loadManagers = async () => {
+        try {
+            const response = await getAvailableManagers();
+            setManagers(response.data);
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
     useEffect(() => { loadBranches(); }, []);
+
+    useEffect(() => {
+        if (showForm) loadManagers();
+    }, [showForm]);
 
     const filteredBranches = useMemo(() => {
         if (!search.trim()) return branches;
@@ -64,7 +78,7 @@ export default function Sucursales() {
             nombre: branch.nombre,
             direccion: branch.direccion,
             telefono: branch.telefono || '',
-            responsable: branch.responsable || ''
+            id_responsable: branch.id_responsable ? String(branch.id_responsable) : ''
         });
         setFormError('');
         setShowForm(true);
@@ -98,10 +112,11 @@ export default function Sucursales() {
         try {
             setSubmitting(true);
             setFormError('');
+            const payload = { ...formData, id_responsable: formData.id_responsable ? Number(formData.id_responsable) : null };
             if (editingBranch) {
-                await updateBranch(editingBranch.id_sucursal, formData);
+                await updateBranch(editingBranch.id_sucursal, payload);
             } else {
-                await createBranch(formData);
+                await createBranch(payload);
             }
             closeForm();
             loadBranches();
@@ -230,7 +245,28 @@ export default function Sucursales() {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-text-primary mb-1">Responsable</label>
-                                    <input type="text" name="responsable" value={formData.responsable} onChange={handleChange} className="w-full px-4 py-3 rounded-input border border-border bg-white/60 focus:ring-2 focus:ring-primary outline-none" />
+                                    <select
+                                        name="id_responsable"
+                                        value={formData.id_responsable}
+                                        onChange={handleChange}
+                                        className="w-full px-4 py-3 rounded-input border border-border bg-white/60 focus:ring-2 focus:ring-primary outline-none"
+                                    >
+                                        <option value="">Sin asignar</option>
+                                        {managers.map((manager) => {
+                                            const assignedElsewhere =
+                                                manager.sucursal_asignada &&
+                                                (!editingBranch || manager.id_usuario !== editingBranch.id_responsable);
+                                            return (
+                                                <option
+                                                    key={manager.id_usuario}
+                                                    value={manager.id_usuario}
+                                                    disabled={assignedElsewhere}
+                                                >
+                                                    {manager.nombre} {manager.apellido}
+                                                </option>
+                                            );
+                                        })}
+                                    </select>
                                 </div>
                             </div>
                             <div className="flex justify-end gap-3 pt-4">

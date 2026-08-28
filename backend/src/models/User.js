@@ -55,6 +55,18 @@ class User {
         );
         return result.affectedRows;
     }
+
+    static async findManagersAvailableForBranch() {
+        const [rows] = await pool.execute(
+            `SELECT u.id_usuario, u.nombre, u.apellido, u.correo, u.estado,
+                    s.id_sucursal AS sucursal_asignada, s.nombre AS sucursal_nombre
+             FROM usuario u
+             LEFT JOIN sucursal s ON s.id_responsable = u.id_usuario
+             WHERE u.rol = 'ENCARGADO_SUCURSAL'
+             ORDER BY u.nombre, u.apellido`
+        );
+        return rows;
+    }
 }
 
 module.exports = User;
