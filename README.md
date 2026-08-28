@@ -45,8 +45,9 @@ juampyzel/
 |   |   |-- pages/Usuarios/     -> Gestion de usuarios (HU02)
 |   |   |-- pages/Sucursales/   -> Gestion de sucursales (HU04)
 |   |   |-- pages/Clientes/     -> Gestion de clientes (HU05)
+|   |   |-- pages/Productos/    -> Gestion de productos y categorias (HU03)
 |   |   |-- routes/             -> AppRoutes, ProtectedRoute, PublicRoute
-|   |   |-- services/           -> authService, userService, branchService, customerService (HTTP calls)
+|   |   |-- services/           -> authService, userService, branchService, customerService, productService, categoryService (HTTP calls)
 |   |   |-- App.jsx
 |   |   |-- main.jsx
 |   |   +-- index.css
@@ -66,16 +67,22 @@ juampyzel/
 |   |   |   |-- authController.js -> Login, logout, me
 |   |   |   |-- userController.js -> CRUD de usuarios (HU02)
 |   |   |   |-- branchController.js -> CRUD de sucursales (HU04)
-|   |   |   +-- customerController.js -> CRUD de clientes (HU05)
+|   |   |   |-- customerController.js -> CRUD de clientes (HU05)
+|   |   |   +-- productController.js -> CRUD de productos (HU03)
+|   |   |   +-- categoryController.js -> CRUD de categorias (HU03)
 |   |   |-- services/
 |   |   |   |-- authService.js    -> Logica de negocio de auth
 |   |   |   |-- userService.js    -> Logica de negocio de usuarios (HU02)
 |   |   |   |-- branchService.js  -> Logica de negocio de sucursales (HU04)
-|   |   |   +-- customerService.js -> Logica de negocio de clientes (HU05)
+|   |   |   |-- customerService.js -> Logica de negocio de clientes (HU05)
+|   |   |   +-- productService.js  -> Logica de negocio de productos (HU03)
+|   |   |   +-- categoryService.js -> Logica de negocio de categorias (HU03)
 |   |   |-- models/
 |   |   |   |-- User.js           -> Consultas a tabla usuario
 |   |   |   |-- Branch.js         -> Consultas a tabla sucursal
-|   |   |   +-- Customer.js       -> Consultas a tabla cliente
+|   |   |   |-- Customer.js       -> Consultas a tabla cliente
+|   |   |   +-- Product.js        -> Consultas a tabla producto
+|   |   |   +-- Category.js       -> Consultas a tabla categoria
 |   |   |-- middlewares/
 |   |   |   |-- authMiddleware.js -> Verificacion de JWT
 |   |   |   +-- roleMiddleware.js -> Verificacion de roles (HU02)
@@ -85,7 +92,9 @@ juampyzel/
 |   |   |   |-- authRoutes.js     -> Endpoints /api/auth/*
 |   |   |   |-- userRoutes.js     -> Endpoints /api/users/* (HU02)
 |   |   |   |-- branchRoutes.js   -> Endpoints /api/branches/* (HU04)
-|   |   |   +-- customerRoutes.js -> Endpoints /api/customers/* (HU05)
+|   |   |   |-- customerRoutes.js -> Endpoints /api/customers/* (HU05)
+|   |   |   +-- productRoutes.js  -> Endpoints /api/products/* (HU03)
+|   |   |   +-- categoryRoutes.js -> Endpoints /api/categories/* (HU03)
 |   |   |-- app.js              -> Express app + middleware + rutas
 |   |   +-- server.js           -> Punto de entrada (ejecuta migraciones)
 |   |-- .env                   -> Variables de entorno
@@ -398,6 +407,78 @@ curl -X POST http://localhost:5000/api/customers \
 
 ---
 
+## Endpoints de productos (HU03)
+
+> Los endpoints de consulta requieren autenticacion (Bearer token). Registrar, editar y cambiar estado requieren rol `ADMINISTRADOR`.
+
+| Metodo | Endpoint | Descripcion |
+|--------|----------|-------------|
+| GET | `/api/products` | Listar todos los productos |
+| GET | `/api/products?q=termino` | Buscar productos por nombre, descripcion o categoria |
+| GET | `/api/products/active` | Listar unicamente los productos activos (disponibles) |
+| GET | `/api/products/:id` | Obtener detalle de un producto |
+| POST | `/api/products` | Registrar nuevo producto |
+| PUT | `/api/products/:id` | Editar datos de un producto |
+| PATCH | `/api/products/:id/status` | Activar o desactivar producto |
+
+**Campos del producto:**
+
+| Campo | Descripcion |
+|-------|-------------|
+| `nombre` | Nombre del producto (obligatorio, minimo 2 caracteres) |
+| `descripcion` | Descripcion del producto |
+| `id_categoria` | Categoria a la que pertenece (obligatoria y debe estar activa) |
+| `precio` | Precio en Bs (obligatorio, mayor a cero) |
+| `stock_minimo` | Stock minimo (por defecto 5, no negativo) |
+| `imagen` | URL de la imagen del producto (opcional) |
+| `estado` | Disponibilidad del producto (activo/inactivo) |
+
+**Ejemplo — Registrar producto:**
+
+```bash
+curl -X POST http://localhost:5000/api/products \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{
+    "nombre": "Helado de Fresa",
+    "descripcion": "Helado de crema sabor fresa",
+    "id_categoria": 1,
+    "precio": 12.00,
+    "stock_minimo": 5,
+    "imagen": "",
+    "estado": true
+  }'
+```
+
+---
+
+## Endpoints de categorias (HU03)
+
+> Los endpoints de consulta requieren autenticacion (Bearer token). Registrar, editar y cambiar estado requieren rol `ADMINISTRADOR`.
+
+| Metodo | Endpoint | Descripcion |
+|--------|----------|-------------|
+| GET | `/api/categories` | Listar todas las categorias |
+| GET | `/api/categories/active` | Listar unicamente las categorias activas |
+| GET | `/api/categories/:id` | Obtener detalle de una categoria |
+| POST | `/api/categories` | Registrar nueva categoria |
+| PUT | `/api/categories/:id` | Editar datos de una categoria |
+| PATCH | `/api/categories/:id/status` | Activar o desactivar categoria |
+
+**Ejemplo — Registrar categoria:**
+
+```bash
+curl -X POST http://localhost:5000/api/categories \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{
+    "nombre": "Helados de crema",
+    "descripcion": "Helados elaborados a base de crema"
+  }'
+```
+
+---
+
 ## Migraciones de base de datos
 
 El backend incluye un sistema de **migraciones versionadas** que se ejecuta automaticamente al iniciar el servidor:
@@ -449,7 +530,7 @@ El archivo `juampyzel_database.sql` contiene:
 |----|--------|--------|
 | **HU01** | Iniciar sesion | Implementada |
 | **HU02** | Gestionar usuarios y roles | Implementada |
-| HU03 | Gestionar productos y categorias | Pendiente |
+| **HU03** | Gestionar productos y categorias | Implementada |
 | **HU04** | Gestionar sucursales | Implementada |
 | **HU05** | Gestionar clientes | Implementada |
 | HU06-HU12 | (Sprints 2 y 3) | Pendientes |
