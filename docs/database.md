@@ -21,10 +21,28 @@ El sistema utiliza **MySQL 8.0** como sistema de gestión de base de datos.
 | Cliente | `cliente` | Clientes que compran en sucursales. |
 | Tienda | `tienda` | Negocios externos que solicitan abastecimiento. |
 | Inventario | `inventario` | Stock de productos por sucursal. |
+| MovimientoInventario | `movimiento_inventario` | Historial de entradas, salidas y ajustes de stock. |
 | Venta | `venta` | Transacciones de venta en sucursales. |
 | DetalleVenta | `detalle_venta` | Líneas detalladas de una venta. |
 | Pedido | `pedido` | Pedidos realizados por tiendas. |
 | DetallePedido | `detalle_pedido` | Líneas detalladas de un pedido. |
+
+## Tabla `movimiento_inventario`
+
+Registra cada entrada, salida o ajuste de stock (HU09). La tabla se crea mediante la migración `backend/migrations/202608290001_crear_movimiento_inventario.sql`.
+
+| Columna | Tipo | Descripción |
+|---------|------|-------------|
+| `id_movimiento` | INT (PK, auto) | Identificador del movimiento. |
+| `id_producto` | INT (FK) | Producto afectado. |
+| `id_sucursal` | INT (FK) | Sucursal donde se realiza el movimiento. |
+| `id_usuario` | INT (FK) | Usuario que registró el movimiento. |
+| `tipo` | ENUM | `ENTRADA`, `SALIDA` o `AJUSTE`. |
+| `cantidad` | INT | Cantidad movida (positiva para ENTRADA/AJUSTE, negativa para SALIDA). |
+| `stock_anterior` | INT | Stock antes del movimiento. |
+| `stock_resultante` | INT | Stock después del movimiento. |
+| `motivo` | VARCHAR(255) | Motivo (obligatorio para `AJUSTE`). |
+| `fecha_movimiento` | DATETIME | Fecha/hora automática del movimiento. |
 
 ## Roles de usuario
 

@@ -1,9 +1,9 @@
 const express = require('express');
 const cors = require('cors');
-const dotenv = require('dotenv');
 const path = require('path');
+const dotenv = require('dotenv');
 
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 
 const app = express();
 
@@ -24,6 +24,7 @@ app.use('/api/categories', require('./routes/categoryRoutes'));
 app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/sales', require('./routes/saleRoutes'));
 app.use('/api/orders', require('./routes/orderRoutes'));
+app.use('/api/inventory', require('./routes/inventoryRoutes'));
 
 // Middleware de manejo de errores
 app.use((err, req, res, next) => {

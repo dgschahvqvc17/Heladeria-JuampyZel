@@ -48,9 +48,10 @@ juampyzel/
 |   |   |-- pages/Ventas/       -> Registro de ventas y punto de venta (HU07)
 |   |   |-- pages/Pedidos/      -> Gestion de pedidos y actualizacion de estado (HU08)
 |   |   |-- pages/Tienda/       -> Portal de tienda: catalogo, pedido y mis pedidos (HU08)
+|   |   |-- pages/Inventario/   -> Stock y movimientos de inventario (HU09)
 |   |   |-- pages/Productos/    -> Gestion de productos y categorias (HU03)
 |   |   |-- routes/             -> AppRoutes, ProtectedRoute, PublicRoute
-|   |   |-- services/           -> authService, userService, branchService, customerService, productService, categoryService, saleService, orderService (HTTP calls)
+|   |   |-- services/           -> authService, userService, branchService, customerService, productService, categoryService, saleService, orderService, inventoryService (HTTP calls)
 |   |   |-- App.jsx
 |   |   |-- main.jsx
 |   |   +-- index.css
@@ -74,7 +75,8 @@ juampyzel/
 |   |   |   |-- productController.js -> CRUD de productos (HU03)
 |   |   |   |-- categoryController.js -> CRUD de categorias (HU03)
 |   |   |   |-- saleController.js  -> Registro y consulta de ventas (HU07)
-|   |   |   +-- orderController.js -> Consulta, creacion y estado de pedidos (HU08)
+|   |   |   |-- orderController.js -> Consulta, creacion y estado de pedidos (HU08)
+|   |   |   +-- inventoryController.js -> Consulta de stock y movimientos (HU09)
 |   |   |-- services/
 |   |   |   |-- authService.js    -> Logica de negocio de auth
 |   |   |   |-- userService.js    -> Logica de negocio de usuarios (HU02)
@@ -83,7 +85,8 @@ juampyzel/
 |   |   |   |-- productService.js  -> Logica de negocio de productos (HU03)
 |   |   |   |-- categoryService.js -> Logica de negocio de categorias (HU03)
 |   |   |   |-- saleService.js     -> Logica de negocio de ventas (HU07)
-|   |   |   +-- orderService.js    -> Consulta, creacion y estado de pedidos (HU08)
+|   |   |   |-- orderService.js    -> Consulta, creacion y estado de pedidos (HU08)
+|   |   |   +-- inventoryService.js -> Logica de stock y movimientos (HU09)
 |   |   |-- models/
 |   |   |   |-- User.js           -> Consultas a tabla usuario
 |   |   |   |-- Branch.js         -> Consultas a tabla sucursal
@@ -92,7 +95,8 @@ juampyzel/
 |   |   |   |-- Category.js       -> Consultas a tabla categoria
 |   |   |   |-- Sale.js           -> Consultas a tablas venta/detalle_venta (HU07)
 |   |   |   |-- Store.js          -> Consultas a tabla tienda (HU08)
-|   |   |   +-- Order.js          -> Consultas a tablas pedido/detalle_pedido (HU08)
+|   |   |   |-- Order.js          -> Consultas a tablas pedido/detalle_pedido (HU08)
+|   |   |   +-- Inventory.js      -> Consultas a tablas inventario/movimiento_inventario (HU09)
 |   |   |-- middlewares/
 |   |   |   |-- authMiddleware.js -> Verificacion de JWT
 |   |   |   +-- roleMiddleware.js -> Verificacion de roles (HU02)
@@ -106,7 +110,8 @@ juampyzel/
 |   |   |   |-- productRoutes.js  -> Endpoints /api/products/* (HU03)
 |   |   |   |-- categoryRoutes.js -> Endpoints /api/categories/* (HU03)
 |   |   |   |-- saleRoutes.js     -> Endpoints /api/sales/* (HU07)
-|   |   |   +-- orderRoutes.js    -> Endpoints /api/orders/* (HU08)
+|   |   |   |-- orderRoutes.js    -> Endpoints /api/orders/* (HU08)
+|   |   |   +-- inventoryRoutes.js -> Endpoints /api/inventory/* (HU09)
 |   |   |-- app.js              -> Express app + middleware + rutas
 |   |   +-- server.js           -> Punto de entrada (ejecuta migraciones)
 |   |-- .env                   -> Variables de entorno
@@ -579,6 +584,45 @@ curl -X PATCH http://localhost:5000/api/orders/1/status \
 
 ---
 
+## Endpoints de inventario (HU09)
+
+> Todos los endpoints requieren autenticacion (Bearer token) y rol `ADMINISTRADOR` o `INVENTARIO`.
+
+| Metodo | Endpoint | Descripcion |
+|--------|----------|-------------|
+| GET | `/api/inventory` | Listar stock actual de todos los productos (suma por sucursales) |
+| GET | `/api/inventory?q=termino` | Buscar productos del inventario por nombre, descripcion o categoria |
+| GET | `/api/inventory/low-stock` | Listar productos cuyo stock actual es menor a su `stock_minimo` |
+| GET | `/api/inventory/movements` | Listar movimientos de inventario (filtros por `producto`, `sucursal` y `tipo`) |
+| GET | `/api/inventory/movements/:id` | Obtener detalle de un movimiento |
+| POST | `/api/inventory/movements` | Registrar un movimiento (entrada, salida o ajuste) |
+
+**Tipos de movimiento:**
+
+| Tipo | Comportamiento |
+|------|----------------|
+| `ENTRADA` | Incrementa el stock del producto en la sucursal |
+| `SALIDA` | Reduce el stock; no puede superar el stock disponible (se guarda como cantidad negativa) |
+| `AJUSTE` | Fija el stock al valor indicado; requiere un `motivo` |
+
+**Ejemplo — Registrar salida:**
+
+```bash
+curl -X POST http://localhost:5000/api/inventory/movements \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{
+    "id_producto": 1,
+    "id_sucursal": 1,
+    "tipo": "SALIDA",
+    "cantidad": 4
+  }'
+```
+
+El backend valida el tipo de movimiento, el producto, la sucursal y la existencia de stock suficiente, y registra el movimiento junto con la actualizacion del stock (`stock_anterior`, `stock_resultante`) dentro de una transaccion. Los movimientos registran automaticamente el usuario y la fecha/hora.
+
+---
+
 ## Migraciones de base de datos
 
 El backend incluye un sistema de **migraciones versionadas** que se ejecuta automaticamente al iniciar el servidor:
@@ -590,7 +634,8 @@ El backend incluye un sistema de **migraciones versionadas** que se ejecuta auto
 ```text
 backend/
 |-- migrations/
-|   +-- 202608270001_add_responsable_fk.sql
+|   |-- 202608270001_add_responsable_fk.sql
+|   +-- 202608290001_crear_movimiento_inventario.sql
 +-- src/utils/migrations.js   -> Runner de migraciones
 ```
 
@@ -608,6 +653,7 @@ sucursal        -> Sucursales de JuampyZel
 cliente         -> Clientes que compran en sucursales
 tienda          -> Tiendas que piden abastecimiento
 inventario      -> Stock por producto y sucursal
+movimiento_inventario -> Historia de entradas, salidas y ajustes de stock
 venta           -> Ventas realizadas en sucursales
 detalle_venta   -> Productos de cada venta
 pedido          -> Pedidos de tiendas
@@ -635,7 +681,8 @@ El archivo `juampyzel_database.sql` contiene:
 | **HU05** | Gestionar clientes | Implementada |
 | **HU07** | Registrar venta | Implementada |
 | **HU08** | Gestionar pedidos de tiendas | Implementada |
-| HU06, HU09-HU12 | (Sprints 2 y 3) | Pendientes |
+| **HU09** | Gestionar inventario | Implementada |
+| HU06, HU10-HU12 | (Sprints 2 y 3) | Pendientes |
 
 ---
 

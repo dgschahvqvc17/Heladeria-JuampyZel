@@ -11,6 +11,7 @@ import Productos from '../pages/Productos/Productos';
 import Ventas from '../pages/Ventas/Ventas';
 import Pedidos from '../pages/Pedidos/Pedidos';
 import Tienda from '../pages/Tienda/Tienda';
+import Inventario from '../pages/Inventario/Inventario';
 
 export default function AppRoutes() {
     return (
@@ -29,6 +30,7 @@ export default function AppRoutes() {
                     <Route path="/productos" element={<Productos />} />
                     <Route path="/ventas" element={<Ventas />} />
                     <Route path="/pedidos" element={<Pedidos />} />
+                    <Route path="/inventario" element={<Inventario />} />
                     <Route path="/tienda" element={<Tienda />} />
                 </Route>
             </Route>
