@@ -46,9 +46,11 @@ juampyzel/
 |   |   |-- pages/Sucursales/   -> Gestion de sucursales (HU04)
 |   |   |-- pages/Clientes/     -> Gestion de clientes (HU05)
 |   |   |-- pages/Ventas/       -> Registro de ventas y punto de venta (HU07)
+|   |   |-- pages/Pedidos/      -> Gestion de pedidos y actualizacion de estado (HU08)
+|   |   |-- pages/Tienda/       -> Portal de tienda: catalogo, pedido y mis pedidos (HU08)
 |   |   |-- pages/Productos/    -> Gestion de productos y categorias (HU03)
 |   |   |-- routes/             -> AppRoutes, ProtectedRoute, PublicRoute
-|   |   |-- services/           -> authService, userService, branchService, customerService, productService, categoryService, saleService (HTTP calls)
+|   |   |-- services/           -> authService, userService, branchService, customerService, productService, categoryService, saleService, orderService (HTTP calls)
 |   |   |-- App.jsx
 |   |   |-- main.jsx
 |   |   +-- index.css
@@ -71,7 +73,8 @@ juampyzel/
 |   |   |   |-- customerController.js -> CRUD de clientes (HU05)
 |   |   |   |-- productController.js -> CRUD de productos (HU03)
 |   |   |   |-- categoryController.js -> CRUD de categorias (HU03)
-|   |   |   +-- saleController.js  -> Registro y consulta de ventas (HU07)
+|   |   |   |-- saleController.js  -> Registro y consulta de ventas (HU07)
+|   |   |   +-- orderController.js -> Consulta, creacion y estado de pedidos (HU08)
 |   |   |-- services/
 |   |   |   |-- authService.js    -> Logica de negocio de auth
 |   |   |   |-- userService.js    -> Logica de negocio de usuarios (HU02)
@@ -79,14 +82,17 @@ juampyzel/
 |   |   |   |-- customerService.js -> Logica de negocio de clientes (HU05)
 |   |   |   |-- productService.js  -> Logica de negocio de productos (HU03)
 |   |   |   |-- categoryService.js -> Logica de negocio de categorias (HU03)
-|   |   |   +-- saleService.js     -> Logica de negocio de ventas (HU07)
+|   |   |   |-- saleService.js     -> Logica de negocio de ventas (HU07)
+|   |   |   +-- orderService.js    -> Consulta, creacion y estado de pedidos (HU08)
 |   |   |-- models/
 |   |   |   |-- User.js           -> Consultas a tabla usuario
 |   |   |   |-- Branch.js         -> Consultas a tabla sucursal
 |   |   |   |-- Customer.js       -> Consultas a tabla cliente
 |   |   |   |-- Product.js        -> Consultas a tabla producto
 |   |   |   |-- Category.js       -> Consultas a tabla categoria
-|   |   |   +-- Sale.js           -> Consultas a tablas venta/detalle_venta (HU07)
+|   |   |   |-- Sale.js           -> Consultas a tablas venta/detalle_venta (HU07)
+|   |   |   |-- Store.js          -> Consultas a tabla tienda (HU08)
+|   |   |   +-- Order.js          -> Consultas a tablas pedido/detalle_pedido (HU08)
 |   |   |-- middlewares/
 |   |   |   |-- authMiddleware.js -> Verificacion de JWT
 |   |   |   +-- roleMiddleware.js -> Verificacion de roles (HU02)
@@ -99,7 +105,8 @@ juampyzel/
 |   |   |   |-- customerRoutes.js -> Endpoints /api/customers/* (HU05)
 |   |   |   |-- productRoutes.js  -> Endpoints /api/products/* (HU03)
 |   |   |   |-- categoryRoutes.js -> Endpoints /api/categories/* (HU03)
-|   |   |   +-- saleRoutes.js     -> Endpoints /api/sales/* (HU07)
+|   |   |   |-- saleRoutes.js     -> Endpoints /api/sales/* (HU07)
+|   |   |   +-- orderRoutes.js    -> Endpoints /api/orders/* (HU08)
 |   |   |-- app.js              -> Express app + middleware + rutas
 |   |   +-- server.js           -> Punto de entrada (ejecuta migraciones)
 |   |-- .env                   -> Variables de entorno
@@ -318,6 +325,7 @@ Authorization: Bearer <jwt_token>
 | `ENCARGADO_SUCURSAL` | Gestion de sucursal asignada |
 | `VENDEDOR` | Registro de ventas |
 | `INVENTARIO` | Gestion de inventario |
+| `TIENDA` | Portal de tienda: catalogo, pedidos y abastecimiento |
 
 **Ejemplo — Registrar usuario:**
 
@@ -521,6 +529,56 @@ El backend:
 
 ---
 
+## Endpoints de pedidos (HU08)
+
+> Requieren autenticacion (Bearer token). Crear pedidos es exclusivo del rol `TIENDA`; consultar y actualizar estado corresponde a `ADMINISTRADOR`, `ENCARGADO_SUCURSAL` e `INVENTARIO` (la tienda solo ve sus propios pedidos).
+
+| Metodo | Endpoint | Descripcion |
+|--------|----------|-------------|
+| GET | `/api/orders` | Listar pedidos (admin/encargado/inventario: todos; tienda: solo los suyos) |
+| GET | `/api/orders/catalog/products` | Catalogo de productos activos con su stock disponible (rol `TIENDA`) |
+| GET | `/api/orders/:id` | Obtener detalle de un pedido (incluye productos) |
+| POST | `/api/orders` | Crear un pedido para la tienda del usuario autenticado (rol `TIENDA`) |
+| PATCH | `/api/orders/:id/status` | Actualizar el estado de un pedido |
+
+**Estados validos del pedido:**
+
+| Estado | Descripcion |
+|--------|-------------|
+| `PENDIENTE` | Pedido registrado, pendiente de atencion |
+| `CONFIRMADO` | Pedido confirmado |
+| `PREPARANDO` | Pedido en preparacion |
+| `LISTO` | Pedido listo para entrega |
+| `ENTREGADO` | Pedido entregado |
+| `CANCELADO` | Pedido cancelado |
+
+**Ejemplo — Crear pedido (tienda):**
+
+```bash
+curl -X POST http://localhost:5000/api/orders \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{
+    "detalles": [
+      { "id_producto": 1, "cantidad": 10 },
+      { "id_producto": 3, "cantidad": 5 }
+    ]
+  }'
+```
+
+El backend valida que los productos esten activos y que exista disponibilidad segun el inventario, calcula el subtotal de cada linea y el total, y registra el pedido y su detalle dentro de una transaccion. **No descuenta inventario** al crear el pedido (eso corresponde a la etapa de despacho).
+
+**Ejemplo — Actualizar estado (administrador/encargado/inventario):**
+
+```bash
+curl -X PATCH http://localhost:5000/api/orders/1/status \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{ "estado": "CONFIRMADO" }'
+```
+
+---
+
 ## Migraciones de base de datos
 
 El backend incluye un sistema de **migraciones versionadas** que se ejecuta automaticamente al iniciar el servidor:
@@ -576,7 +634,8 @@ El archivo `juampyzel_database.sql` contiene:
 | **HU04** | Gestionar sucursales | Implementada |
 | **HU05** | Gestionar clientes | Implementada |
 | **HU07** | Registrar venta | Implementada |
-| HU06, HU08-HU12 | (Sprints 2 y 3) | Pendientes |
+| **HU08** | Gestionar pedidos de tiendas | Implementada |
+| HU06, HU09-HU12 | (Sprints 2 y 3) | Pendientes |
 
 ---
 

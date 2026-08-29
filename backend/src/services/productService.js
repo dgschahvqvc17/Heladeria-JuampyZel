@@ -1,3 +1,5 @@
+const path = require('path');
+const fs = require('fs');
 const Product = require('../models/Product');
 const Category = require('../models/Category');
 
@@ -41,7 +43,7 @@ class ProductService {
         return this.getById(productId);
     }
 
-    static async update(id, { id_categoria, nombre, descripcion, precio, stock_minimo, imagen, estado }) {
+    static async update(id, { id_categoria, nombre, descripcion, precio, stock_minimo, estado, imagen, _nuevaImagen }) {
         this.validateFields({ id_categoria, nombre, precio });
         this.validateStockMinimo(stock_minimo);
 
@@ -50,17 +52,41 @@ class ProductService {
 
         await this.ensureCategory(id_categoria);
 
+        const previousImage = existingProduct.imagen;
+
+        let finalImagen;
+        if (_nuevaImagen) {
+            finalImagen = imagen ? imagen.trim() : null;
+        } else if (imagen && imagen.trim()) {
+            finalImagen = imagen.trim();
+        } else {
+            finalImagen = previousImage;
+        }
+
         await Product.update(id, {
             id_categoria,
             nombre: nombre.trim(),
             descripcion: descripcion ? descripcion.trim() : null,
             precio,
             stock_minimo,
-            imagen: imagen ? imagen.trim() : null,
+            imagen: finalImagen,
             estado: estado === undefined ? existingProduct.estado : !!estado
         });
 
+        if (_nuevaImagen && previousImage && previousImage.startsWith('/uploads/')) {
+            this.removeFile(previousImage);
+        }
+
         return this.getById(id);
+    }
+
+    static removeFile(relativePath) {
+        try {
+            const filePath = path.join(__dirname, '../../uploads', path.basename(relativePath));
+            fs.unlink(filePath, () => {});
+        } catch (err) {
+            console.error('[ProductService] No se pudo eliminar el archivo:', err.message);
+        }
     }
 
     static async toggleStatus(id) {

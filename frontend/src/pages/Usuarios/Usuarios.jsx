@@ -191,6 +191,7 @@ export default function Usuarios() {
     };
 
     const getRoleLabel = (rol) => {
+        if (rol === 'TIENDA') return 'Tienda';
         const role = ROLES.find((r) => r.value === rol);
         return role ? role.label : rol;
     };
@@ -336,8 +337,13 @@ export default function Usuarios() {
                                                 </button>
                                                 <button
                                                     onClick={() => openEditForm(user)}
-                                                    className="p-2 rounded-xl text-text-secondary hover:text-primary hover:bg-primary/10 transition-all"
-                                                    title="Editar"
+                                                    disabled={user.rol === 'TIENDA'}
+                                                    title={user.rol === 'TIENDA' ? 'Las cuentas de tienda se gestionan desde el módulo Tiendas' : 'Editar'}
+                                                    className={`p-2 rounded-xl transition-all ${
+                                                        user.rol === 'TIENDA'
+                                                            ? 'text-text-secondary/30 cursor-not-allowed'
+                                                            : 'text-text-secondary hover:text-primary hover:bg-primary/10'
+                                                    }`}
                                                 >
                                                     <EditIcon />
                                                 </button>

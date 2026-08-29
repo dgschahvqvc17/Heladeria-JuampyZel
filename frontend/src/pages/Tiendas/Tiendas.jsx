@@ -22,7 +22,7 @@ const StoreBagIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
 );
 
-const EMPTY_FORM = { nombre: '', responsable: '', telefono: '', correo: '', direccion: '' };
+const EMPTY_FORM = { nombre: '', responsable: '', telefono: '', direccion: '', correo_acceso: '', password: '' };
 
 export default function Tiendas() {
     const { user } = useAuth();
@@ -101,8 +101,16 @@ export default function Tiendas() {
         if (formData.responsable.trim().length < 2) return 'El responsable debe tener al menos 2 caracteres.';
         if (!formData.direccion.trim()) return 'La dirección es obligatoria.';
         if (formData.direccion.trim().length < 5) return 'La dirección debe tener al menos 5 caracteres.';
-        if (formData.correo.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.correo.trim())) {
+        if (editingStore && formData.correo && formData.correo.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.correo.trim())) {
             return 'El correo electrónico no tiene un formato válido.';
+        }
+        if (!editingStore) {
+            if (!formData.correo_acceso.trim()) return 'El correo de acceso es obligatorio.';
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.correo_acceso.trim())) {
+                return 'El correo de acceso no tiene un formato válido.';
+            }
+            if (!formData.password) return 'La contraseña de acceso es obligatoria.';
+            if (formData.password.length < 6) return 'La contraseña de acceso debe tener al menos 6 caracteres.';
         }
         return '';
     };
@@ -264,15 +272,35 @@ export default function Tiendas() {
                                     <label className="block text-sm font-medium text-text-primary mb-1">Teléfono</label>
                                     <input type="text" name="telefono" value={formData.telefono} onChange={handleChange} className="w-full px-4 py-3 rounded-input border border-border bg-white/60 focus:ring-2 focus:ring-primary outline-none" />
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-text-primary mb-1">Correo Electrónico</label>
-                                    <input type="email" name="correo" value={formData.correo} onChange={handleChange} className="w-full px-4 py-3 rounded-input border border-border bg-white/60 focus:ring-2 focus:ring-primary outline-none" />
-                                </div>
+                                {editingStore && (
+                                    <div>
+                                        <label className="block text-sm font-medium text-text-primary mb-1">Correo Electrónico</label>
+                                        <input type="email" name="correo" value={formData.correo} onChange={handleChange} className="w-full px-4 py-3 rounded-input border border-border bg-white/60 focus:ring-2 focus:ring-primary outline-none" />
+                                    </div>
+                                )}
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-text-primary mb-1">Dirección *</label>
                                 <input type="text" name="direccion" value={formData.direccion} onChange={handleChange} className="w-full px-4 py-3 rounded-input border border-border bg-white/60 focus:ring-2 focus:ring-primary outline-none" />
                             </div>
+                            {!editingStore && (
+                                <>
+                                    <div className="border-t border-border/30 pt-4">
+                                        <p className="text-sm font-semibold text-text-primary mb-1">Credenciales de acceso</p>
+                                        <p className="text-xs text-text-secondary mb-3">La tienda usará estos datos para iniciar sesión y realizar sus pedidos.</p>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-text-primary mb-1">Correo de Acceso *</label>
+                                            <input type="email" name="correo_acceso" value={formData.correo_acceso} onChange={handleChange} className="w-full px-4 py-3 rounded-input border border-border bg-white/60 focus:ring-2 focus:ring-primary outline-none" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-text-primary mb-1">Contraseña *</label>
+                                            <input type="password" name="password" value={formData.password} onChange={handleChange} className="w-full px-4 py-3 rounded-input border border-border bg-white/60 focus:ring-2 focus:ring-primary outline-none" />
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                             <div className="flex justify-end gap-3 pt-4">
                                 <button type="button" onClick={closeForm} className="px-5 py-2.5 rounded-btn border border-border text-text-secondary hover:bg-primary/5 text-sm transition-all">Cancelar</button>
                                 <button type="submit" disabled={submitting} className="flex items-center gap-2 px-5 py-2.5 rounded-btn bg-gradient-to-r from-primary to-secondary text-white text-sm shadow-md disabled:opacity-70">

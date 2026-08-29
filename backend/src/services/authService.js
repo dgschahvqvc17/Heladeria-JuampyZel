@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const jwtConfig = require('../config/jwt');
 const UserModel = require('../models/User');
+const Store = require('../models/Store');
 
 class AuthService {
     static async login(correo, password) {
@@ -31,15 +32,31 @@ class AuthService {
             { expiresIn: jwtConfig.expiresIn }
         );
 
+        const userData = {
+            id: user.id_usuario,
+            nombre: user.nombre,
+            apellido: user.apellido,
+            correo: user.correo,
+            rol: user.rol
+        };
+
+        if (user.rol === 'TIENDA') {
+            const store = await Store.findByUserId(user.id_usuario);
+            if (!store) {
+                throw new Error('No se encontró una tienda vinculada a esta cuenta.');
+            }
+            if (!store.estado) {
+                throw new Error('La tienda vinculada a esta cuenta está desactivada.');
+            }
+            userData.tienda = {
+                id_tienda: store.id_tienda,
+                nombre: store.nombre
+            };
+        }
+
         return {
             token,
-            user: {
-                id: user.id_usuario,
-                nombre: user.nombre,
-                apellido: user.apellido,
-                correo: user.correo,
-                rol: user.rol
-            }
+            user: userData
         };
     }
 }
