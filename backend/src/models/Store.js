@@ -16,6 +16,14 @@ class Store {
         return rows[0];
     }
 
+    static async findByUserId(userId) {
+        const [rows] = await pool.execute(
+            'SELECT id_tienda, id_usuario, nombre, responsable, telefono, correo, direccion, estado, fecha_registro FROM tienda WHERE id_usuario = ?',
+            [userId]
+        );
+        return rows[0];
+    }
+
     static async findByName(nombre) {
         const [rows] = await pool.execute(
             'SELECT id_tienda, nombre FROM tienda WHERE nombre = ?',
@@ -24,10 +32,10 @@ class Store {
         return rows[0];
     }
 
-    static async create({ nombre, responsable, telefono, correo, direccion }) {
+    static async create({ id_usuario, nombre, responsable, telefono, correo, direccion }) {
         const [result] = await pool.execute(
-            'INSERT INTO tienda (nombre, responsable, telefono, correo, direccion) VALUES (?, ?, ?, ?, ?)',
-            [nombre, responsable, telefono || null, correo || null, direccion]
+            'INSERT INTO tienda (id_usuario, nombre, responsable, telefono, correo, direccion) VALUES (?, ?, ?, ?, ?, ?)',
+            [id_usuario, nombre, responsable, telefono || null, correo || null, direccion]
         );
         return result.insertId;
     }

@@ -33,7 +33,11 @@ class ProductController {
 
     static async create(req, res) {
         try {
-            const product = await ProductService.create(req.body);
+            const productData = { ...req.body };
+            if (req.file) {
+                productData.imagen = `/uploads/${req.file.filename}`;
+            }
+            const product = await ProductService.create(productData);
             res.status(201).json({ success: true, message: 'Producto registrado correctamente.', data: product });
         } catch (error) {
             res.status(400).json({ success: false, message: error.message });
@@ -42,7 +46,14 @@ class ProductController {
 
     static async update(req, res) {
         try {
-            const product = await ProductService.update(req.params.id, req.body);
+            const productData = { ...req.body };
+            if (req.file) {
+                productData.imagen = `/uploads/${req.file.filename}`;
+                productData._nuevaImagen = true;
+            } else if (req.body.imagen !== undefined && req.body.imagen !== '') {
+                productData._nuevaImagen = false;
+            }
+            const product = await ProductService.update(req.params.id, productData);
             res.status(200).json({ success: true, message: 'Producto actualizado correctamente.', data: product });
         } catch (error) {
             const status = error.message.includes('no encontrado') ? 404 : 400;

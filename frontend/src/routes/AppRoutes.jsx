@@ -9,6 +9,8 @@ import Clientes from '../pages/Clientes/Clientes';
 import Tiendas from '../pages/Tiendas/Tiendas';
 import Productos from '../pages/Productos/Productos';
 import Ventas from '../pages/Ventas/Ventas';
+import Pedidos from '../pages/Pedidos/Pedidos';
+import Tienda from '../pages/Tienda/Tienda';
 
 export default function AppRoutes() {
     return (
@@ -26,6 +28,8 @@ export default function AppRoutes() {
                     <Route path="/tiendas" element={<Tiendas />} />
                     <Route path="/productos" element={<Productos />} />
                     <Route path="/ventas" element={<Ventas />} />
+                    <Route path="/pedidos" element={<Pedidos />} />
+                    <Route path="/tienda" element={<Tienda />} />
                 </Route>
             </Route>
         </Routes>

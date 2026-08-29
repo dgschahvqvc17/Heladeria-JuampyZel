@@ -38,8 +38,8 @@ class UserController {
 
     static async create(req, res) {
         try {
-            const { nombre, apellido, correo, password, rol } = req.body;
-            const user = await UserService.create({ nombre, apellido, correo, password, rol });
+            const { nombre, apellido, correo, password, rol, tienda } = req.body;
+            const user = await UserService.create({ nombre, apellido, correo, password, rol, tienda });
 
             res.status(201).json({
                 success: true,
@@ -59,8 +59,8 @@ class UserController {
     static async update(req, res) {
         try {
             const { id } = req.params;
-            const { nombre, apellido, correo, rol } = req.body;
-            const user = await UserService.update(id, { nombre, apellido, correo, rol });
+            const { nombre, apellido, correo, rol, tienda } = req.body;
+            const user = await UserService.update(id, { nombre, apellido, correo, rol, tienda });
 
             res.status(200).json({
                 success: true,

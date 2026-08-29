@@ -119,9 +119,9 @@ const navItems = [
     { icon: <BoxIcon />, label: 'Productos', path: '/productos', roles: ['ADMINISTRADOR', 'ENCARGADO_SUCURSAL', 'VENDEDOR', 'INVENTARIO'] },
     { icon: <StoreIcon />, label: 'Sucursales', path: '/sucursales', roles: ['ADMINISTRADOR', 'ENCARGADO_SUCURSAL'] },
     { icon: <StoreBagIcon />, label: 'Tiendas', path: '/tiendas', roles: ['ADMINISTRADOR', 'INVENTARIO'] },
-    { icon: <ShoppingCartIcon />, label: 'Pedidos', path: '/pedidos', roles: ['ADMINISTRADOR', 'INVENTARIO'] },
+    { icon: <ShoppingCartIcon />, label: 'Pedidos', path: '/pedidos', roles: ['ADMINISTRADOR', 'ENCARGADO_SUCURSAL', 'INVENTARIO'] },
+    { icon: <StoreBagIcon />, label: 'Portal Tienda', path: '/tienda', roles: ['TIENDA'] },
     { icon: <CustomersIcon />, label: 'Clientes', path: '/clientes', roles: ['ADMINISTRADOR', 'ENCARGADO_SUCURSAL', 'VENDEDOR', 'INVENTARIO'] },
-    { icon: <ShoppingCartIcon />, label: 'Pedidos', path: '/pedidos', roles: ['ADMINISTRADOR', 'INVENTARIO'] },
     { icon: <DollarIcon />, label: 'Ventas', path: '/ventas', roles: ['ADMINISTRADOR', 'ENCARGADO_SUCURSAL', 'VENDEDOR'] },
     { icon: <PackageIcon />, label: 'Inventario', path: '/inventario', roles: ['ADMINISTRADOR', 'INVENTARIO'] },
     { icon: <BarChartIcon />, label: 'Reportes', path: '/reportes', roles: ['ADMINISTRADOR'] },
@@ -289,10 +289,14 @@ export default function Dashboard() {
                                 </div>
                             </div>
                             <h3 className="text-2xl font-title font-bold text-text-primary mb-2">
-                                Bienvenido a JuampyZel
+                                {user?.rol === 'TIENDA'
+                                    ? `Bienvenido, ${user?.tienda?.nombre || user?.nombre}`
+                                    : 'Bienvenido a JuampyZel'}
                             </h3>
                             <p className="text-text-secondary max-w-md">
-                                El panel de control estara disponible cuando se conecte a la base de datos.
+                                {user?.rol === 'TIENDA'
+                                    ? 'Gestiona tus pedidos desde el catalogo disponible.'
+                                    : 'El panel de control estara disponible cuando se conecte a la base de datos.'}
                             </p>
                         </div>
                     ) : (

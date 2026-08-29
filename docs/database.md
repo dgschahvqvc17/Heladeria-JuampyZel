@@ -34,6 +34,7 @@ El campo `rol` en la tabla `usuario` es un ENUM con los siguientes valores:
 - `ENCARGADO_SUCURSAL` — Gestión de una sucursal específica.
 - `VENDEDOR` — Registro de ventas y atención a clientes.
 - `INVENTARIO` — Control de inventario y abastecimiento.
+- `TIENDA` — Portal de tienda: consulta el catálogo, crea pedidos y visualiza sus propios pedidos.
 
 ## Credenciales iniciales
 

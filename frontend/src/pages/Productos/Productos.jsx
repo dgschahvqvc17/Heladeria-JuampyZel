@@ -4,7 +4,8 @@ import {
     getProducts,
     createProduct,
     updateProduct,
-    toggleProductStatus
+    toggleProductStatus,
+    getImageUrl
 } from '../../services/productService';
 import {
     getCategories,
@@ -55,6 +56,8 @@ export default function Productos() {
     const [productForm, setProductForm] = useState(EMPTY_PRODUCT);
     const [productError, setProductError] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [imageFile, setImageFile] = useState(null);
+    const [imagePreview, setImagePreview] = useState('');
     const [showDetail, setShowDetail] = useState(null);
     const [activeTab, setActiveTab] = useState('productos');
     const [showCategoryForm, setShowCategoryForm] = useState(false);
@@ -106,6 +109,8 @@ export default function Productos() {
 
     const openProductForm = (product) => {
         setEditingProduct(product);
+        setImageFile(null);
+        setImagePreview(product ? getImageUrl(product.imagen) || '' : '');
         setProductForm(
             product
                 ? {
@@ -126,6 +131,8 @@ export default function Productos() {
     const closeProductForm = () => {
         setShowProductForm(false);
         setEditingProduct(null);
+        setImageFile(null);
+        setImagePreview('');
         setProductForm(EMPTY_PRODUCT);
         setProductError('');
     };
@@ -133,6 +140,17 @@ export default function Productos() {
     const handleProductChange = (e) => {
         const { name, value, type, checked } = e.target;
         setProductForm((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+    };
+
+    const handleImageChange = (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) {
+            setImageFile(null);
+            setImagePreview('');
+            return;
+        }
+        setImageFile(file);
+        setImagePreview(URL.createObjectURL(file));
     };
 
     const validateProduct = () => {
@@ -159,10 +177,10 @@ export default function Productos() {
                 ...productForm,
                 nombre: productForm.nombre.trim(),
                 descripcion: productForm.descripcion.trim(),
-                imagen: productForm.imagen.trim(),
                 precio: Number(productForm.precio),
                 stock_minimo: Number(productForm.stock_minimo),
-                estado: productForm.estado
+                estado: productForm.estado,
+                imageFile
             };
             if (editingProduct) {
                 await updateProduct(editingProduct.id_producto, payload);
@@ -321,7 +339,7 @@ export default function Productos() {
                                                     <div className="flex items-center gap-3">
                                                         <div className="w-11 h-11 rounded-xl overflow-hidden bg-gradient-to-br from-primary/15 to-secondary/15 flex items-center justify-center flex-shrink-0">
                                                             {product.imagen ? (
-                                                                <img src={product.imagen} alt={product.nombre} className="w-full h-full object-cover" />
+                                                                <img src={getImageUrl(product.imagen)} alt={product.nombre} className="w-full h-full object-contain" />
                                                             ) : (
                                                                 <span className="text-lg">🍦</span>
                                                             )}
@@ -423,7 +441,7 @@ export default function Productos() {
                             <div className="flex items-center gap-4">
                                 <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gradient-to-br from-primary/15 to-secondary/15 flex items-center justify-center flex-shrink-0">
                                     {showDetail.imagen ? (
-                                        <img src={showDetail.imagen} alt={showDetail.nombre} className="w-full h-full object-cover" />
+                                        <img src={getImageUrl(showDetail.imagen)} alt={showDetail.nombre} className="w-full h-full object-contain" />
                                     ) : (
                                         <span className="text-3xl">🍦</span>
                                     )}
@@ -487,8 +505,11 @@ export default function Productos() {
                                     <input type="number" name="stock_minimo" min="0" value={productForm.stock_minimo} onChange={handleProductChange} className="w-full px-4 py-3 rounded-input border border-border bg-white/60 focus:ring-2 focus:ring-primary outline-none" />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-text-primary mb-1">Imagen (URL)</label>
-                                    <input type="text" name="imagen" value={productForm.imagen} onChange={handleProductChange} placeholder="https://..." className="w-full px-4 py-3 rounded-input border border-border bg-white/60 focus:ring-2 focus:ring-primary outline-none" />
+                                    <label className="block text-sm font-medium text-text-primary mb-1">Imagen</label>
+                                    <input type="file" name="imagen" accept="image/*" onChange={handleImageChange} className="w-full text-sm text-text-secondary file:mr-3 file:px-4 file:py-2.5 file:rounded-btn file:border-0 file:bg-primary/10 file:text-primary file:font-medium file:cursor-pointer hover:file:bg-primary/20" />
+                                    {imagePreview && (
+                                        <img src={imagePreview} alt="Vista previa" className="mt-3 w-24 h-24 rounded-xl object-contain border border-border bg-white/40" />
+                                    )}
                                 </div>
                             </div>
                             <label className="flex items-center gap-3 cursor-pointer select-none">

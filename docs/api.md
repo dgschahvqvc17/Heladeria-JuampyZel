@@ -74,6 +74,29 @@ POST /api/auth/login
 }
 ```
 
+Cuando el usuario tiene rol `TIENDA`, la respuesta de login incluye además la tienda vinculada:
+
+```json
+{
+    "success": true,
+    "message": "Inicio de sesión exitoso.",
+    "data": {
+        "token": "<jwt_token>",
+        "user": {
+            "id": 5,
+            "nombre": "Maria",
+            "apellido": "Lopez",
+            "correo": "tienda@ejemplo.com",
+            "rol": "TIENDA",
+            "tienda": {
+                "id_tienda": 1,
+                "nombre": "Tienda Centro"
+            }
+        }
+    }
+}
+```
+
 ### Cerrar sesión
 
 ```
@@ -148,10 +171,18 @@ DELETE /api/customers/:id
 
 ```text
 GET    /api/orders
+GET    /api/orders/catalog/products
 GET    /api/orders/:id
 POST   /api/orders
-PUT    /api/orders/:id
+PATCH  /api/orders/:id/status
 ```
+
+- `GET /api/orders`: `ADMINISTRADOR`, `ENCARGADO_SUCURSAL`, `INVENTARIO` ven todos los pedidos; el rol `TIENDA` ve únicamente los suyos.
+- `GET /api/orders/catalog/products`: catálogo de productos activos con el stock disponible (`TIENDA`).
+- `POST /api/orders`: crea un pedido para la tienda del usuario autenticado (rol `TIENDA`). Valida productos activos y disponibilidad de inventario, calcula el total y registra el detalle dentro de una transacción. No descuenta inventario (eso corresponde al despacho).
+- `PATCH /api/orders/:id/status`: actualiza el estado de un pedido. Estados válidos: `PENDIENTE`, `CONFIRMADO`, `PREPARANDO`, `LISTO`, `ENTREGADO`, `CANCELADO`. Solo `ADMINISTRADOR`, `ENCARGADO_SUCURSAL` e `INVENTARIO`.
+
+Roles para crear: `TIENDA`.
 
 ### Ventas
 

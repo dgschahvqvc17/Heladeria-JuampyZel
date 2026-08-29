@@ -1,4 +1,5 @@
 const Store = require('../models/Store');
+const UserService = require('./userService');
 
 class StoreService {
     static async getAll() {
@@ -11,23 +12,51 @@ class StoreService {
         return store;
     }
 
-    static async create({ nombre, responsable, telefono, correo, direccion }) {
-        this.validateFields({ nombre, responsable, correo, direccion });
+    static async create({ nombre, responsable, telefono, direccion, correo_acceso, password }) {
+        this.validateFields({ nombre, responsable, correo: correo_acceso, direccion });
+        this.validateAccessFields(correo_acceso, password);
 
         const existingStore = await Store.findByName(nombre.trim());
         if (existingStore) {
             throw new Error('El nombre comercial de la tienda ya está registrado.');
         }
 
-        const storeId = await Store.create({
-            nombre: nombre.trim(),
-            responsable: responsable.trim(),
-            telefono: telefono ? telefono.trim() : null,
-            correo: correo ? correo.trim().toLowerCase() : null,
-            direccion: direccion.trim()
+        const createdUser = await UserService.create({
+            nombre: responsable.trim(),
+            apellido: 'Tienda',
+            correo: correo_acceso,
+            password,
+            rol: 'TIENDA',
+            tienda: {
+                nombre: nombre.trim(),
+                responsable: responsable.trim(),
+                telefono: telefono ? telefono.trim() : null,
+                correo: correo_acceso.trim(),
+                direccion: direccion.trim()
+            }
         });
 
-        return this.getById(storeId);
+        if (!createdUser.tienda) {
+            throw new Error('No se pudo crear la cuenta de la tienda.');
+        }
+
+        return createdUser.tienda;
+    }
+
+    static validateAccessFields(correo_acceso, password) {
+        if (!correo_acceso || !correo_acceso.trim()) {
+            throw new Error('El correo de acceso de la tienda es obligatorio.');
+        }
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(correo_acceso.trim())) {
+            throw new Error('El correo de acceso no tiene un formato válido.');
+        }
+        if (!password || !password.trim()) {
+            throw new Error('La contraseña de acceso es obligatoria.');
+        }
+        if (password.length < 6) {
+            throw new Error('La contraseña de acceso debe tener al menos 6 caracteres.');
+        }
     }
 
     static async update(id, { nombre, responsable, telefono, correo, direccion }) {

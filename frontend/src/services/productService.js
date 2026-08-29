@@ -1,4 +1,5 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE = API_URL.replace(/\/api\/?$/, '');
 
 function getAuthHeaders() {
     const token = localStorage.getItem('token');
@@ -6,6 +7,34 @@ function getAuthHeaders() {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token || ''}`
     };
+}
+
+function getAuthHeadersMultipart() {
+    const token = localStorage.getItem('token');
+    return {
+        'Authorization': `Bearer ${token || ''}`
+    };
+}
+
+export function getImageUrl(imagen) {
+    if (!imagen) return null;
+    if (/^https?:\/\//i.test(imagen)) return imagen;
+    if (imagen.startsWith('/uploads/')) return `${API_BASE}${imagen}`;
+    return imagen;
+}
+
+export function buildProductFormData(productData) {
+    const formData = new FormData();
+    formData.append('id_categoria', productData.id_categoria);
+    formData.append('nombre', productData.nombre);
+    formData.append('descripcion', productData.descripcion || '');
+    formData.append('precio', productData.precio);
+    formData.append('stock_minimo', productData.stock_minimo);
+    formData.append('estado', productData.estado ? '1' : '0');
+    if (productData.imageFile) {
+        formData.append('imagen', productData.imageFile);
+    }
+    return formData;
 }
 
 export async function getProducts(searchTerm) {
@@ -33,8 +62,8 @@ export async function getProductById(id) {
 export async function createProduct(productData) {
     const response = await fetch(`${API_URL}/products`, {
         method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(productData)
+        headers: getAuthHeadersMultipart(),
+        body: buildProductFormData(productData)
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.message || 'Error al registrar el producto.');
@@ -44,8 +73,8 @@ export async function createProduct(productData) {
 export async function updateProduct(id, productData) {
     const response = await fetch(`${API_URL}/products/${id}`, {
         method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(productData)
+        headers: getAuthHeadersMultipart(),
+        body: buildProductFormData(productData)
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.message || 'Error al actualizar el producto.');
