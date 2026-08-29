@@ -200,9 +200,40 @@ El registro de venta (`POST /api/sales`) valida la sucursal, los productos y el 
 
 ```text
 GET    /api/inventory
-GET    /api/inventory/:id
-PUT    /api/inventory/:id
+GET    /api/inventory?q=termino
+GET    /api/inventory/low-stock
+GET    /api/inventory/movements
+GET    /api/inventory/movements?producto=:id
+GET    /api/inventory/movements?sucursal=:id
+GET    /api/inventory/movements?tipo=:tipo
+GET    /api/inventory/movements/:id
+POST   /api/inventory/movements
 ```
+
+Todos los endpoints requieren autenticación y rol `ADMINISTRADOR` o `INVENTARIO`.
+
+- `GET /api/inventory`: stock actual por producto (Suma de las sucursales), con campo `bajo_stock` (`1` si `stock_actual < stock_minimo`).
+- `GET /api/inventory?q=termino`: filtra por nombre, descripción o categoría.
+- `GET /api/inventory/low-stock`: solo productos con bajo stock.
+- `GET /api/inventory/movements`: historial de movimientos (filtros opcionales `producto`, `sucursal`, `tipo`).
+- `POST /api/inventory/movements`: registra un movimiento. Body:
+
+```json
+{
+    "id_producto": 1,
+    "id_sucursal": 1,
+    "tipo": "ENTRADA",
+    "cantidad": 10,
+    "motivo": "Recepción de mercadería"
+}
+```
+
+Reglas:
+
+- `tipo` válido: `ENTRADA`, `SALIDA` o `AJUSTE`.
+- `cantidad`: entero mayor a cero. En `SALIDA` se almacena como negativo y no puede superar el stock disponible.
+- `AJUSTE` requiere `motivo` (mínimo 2 caracteres); fija el stock al valor indicado.
+- Se registran `stock_anterior`, `stock_resultante`, `id_usuario` (JWT) y `fecha_movimiento` en `movimiento_inventario`, todo dentro de una transacción con la actualización de `inventario`.
 
 ### Usuarios
 
