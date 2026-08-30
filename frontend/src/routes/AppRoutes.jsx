@@ -11,6 +11,11 @@ import Productos from '../pages/Productos/Productos';
 import Ventas from '../pages/Ventas/Ventas';
 import Pedidos from '../pages/Pedidos/Pedidos';
 import Tienda from '../pages/Tienda/Tienda';
+<<<<<<< Updated upstream
+=======
+import Inventario from '../pages/Inventario/Inventario';
+import Alertas from '../pages/Alertas/Alertas';
+>>>>>>> Stashed changes
 
 export default function AppRoutes() {
     return (
@@ -30,6 +35,7 @@ export default function AppRoutes() {
                     <Route path="/ventas" element={<Ventas />} />
                     <Route path="/pedidos" element={<Pedidos />} />
                     <Route path="/tienda" element={<Tienda />} />
+                    <Route path="/alertas" element={<Alertas />} />
                 </Route>
             </Route>
         </Routes>
