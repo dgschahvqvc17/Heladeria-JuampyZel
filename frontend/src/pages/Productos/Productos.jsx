@@ -314,68 +314,58 @@ export default function Productos() {
                         </div>
                     </div>
 
-                    <div className="glass-card rounded-card overflow-hidden">
+                    <div>
                         {loading ? (
                             <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div></div>
                         ) : filteredProducts.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-16 text-text-secondary">No se encontraron productos</div>
                         ) : (
-                            <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead>
-                                        <tr className="border-b border-border/50 text-left text-xs font-semibold text-text-secondary uppercase">
-                                            <th className="px-6 py-4">Producto</th>
-                                            <th className="px-6 py-4">Categoría</th>
-                                            <th className="px-6 py-4">Precio</th>
-                                            <th className="px-6 py-4">Stock mín.</th>
-                                            <th className="px-6 py-4">Estado</th>
-                                            <th className="px-6 py-4 text-right">Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {filteredProducts.map((product) => (
-                                            <tr key={product.id_producto} className="border-b border-border/30 hover:bg-primary/5 transition-colors">
-                                                <td className="px-6 py-4">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-11 h-11 rounded-xl overflow-hidden bg-gradient-to-br from-primary/15 to-secondary/15 flex items-center justify-center flex-shrink-0">
-                                                            {product.imagen ? (
-                                                                <img src={getImageUrl(product.imagen)} alt={product.nombre} className="w-full h-full object-contain" />
-                                                            ) : (
-                                                                <span className="text-lg">🍦</span>
-                                                            )}
-                                                        </div>
-                                                        <div>
-                                                            <p className="font-semibold text-text-primary text-sm">{product.nombre}</p>
-                                                            {product.descripcion && <p className="text-xs text-text-secondary truncate max-w-[220px]">{product.descripcion}</p>}
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4"><span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-secondary/10 text-secondary">{product.categoria_nombre}</span></td>
-                                                <td className="px-6 py-4 text-sm font-semibold text-text-primary">{formatPrice(product.precio)}</td>
-                                                <td className="px-6 py-4 text-sm text-text-secondary">{product.stock_minimo}</td>
-                                                <td className="px-6 py-4">
-                                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${product.estado ? 'bg-fresh/10 text-green-700' : 'bg-error/10 text-error'}`}>
-                                                        <span className={`w-1.5 h-1.5 rounded-full ${product.estado ? 'bg-green-500' : 'bg-error'}`}></span>
-                                                        {product.estado ? 'Disponible' : 'No disponible'}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="flex justify-end gap-2">
-                                                        <button onClick={() => setShowDetail(product)} className="p-2 rounded-xl text-text-secondary hover:text-secondary hover:bg-secondary/10" title="Ver detalle"><EyeIcon /></button>
-                                                        {canManage && (
-                                                            <>
-                                                                <button onClick={() => openProductForm(product)} className="p-2 rounded-xl text-text-secondary hover:text-primary hover:bg-primary/10" title="Editar"><EditIcon /></button>
-                                                                <button onClick={() => handleToggleProduct(product)} className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${product.estado ? 'text-error hover:bg-error/10' : 'text-fresh hover:bg-fresh/10'}`} title={product.estado ? 'Desactivar' : 'Activar'}>
-                                                                    {product.estado ? 'Desactivar' : 'Activar'}
-                                                                </button>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                                {filteredProducts.map((product) => (
+                                    <div key={product.id_producto} className="glass-card rounded-card overflow-hidden flex flex-col group hover:shadow-lg transition-shadow">
+                                        <div className="relative h-44 bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center p-2">
+                                            {product.imagen ? (
+                                                <img src={getImageUrl(product.imagen)} alt={product.nombre} className="w-full h-full object-contain mix-blend-multiply" />
+                                            ) : (
+                                                <span className="text-6xl">🍦</span>
+                                            )}
+                                            <span className="absolute top-3 left-3 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold text-white bg-secondary shadow">
+                                                {product.categoria_nombre}
+                                            </span>
+                                            <span className={`absolute top-3 right-3 px-2.5 py-1 rounded-full text-xs font-semibold text-white shadow ${product.estado ? 'bg-fresh' : 'bg-error'}`}>
+                                                {product.estado ? 'Disponible' : 'Agotado'}
+                                            </span>
+                                        </div>
+                                        <div className="p-4 flex flex-col flex-1">
+                                            <h3 className="font-title font-bold text-text-primary leading-snug">{product.nombre}</h3>
+                                            {product.descripcion && (
+                                                <p className="text-sm text-text-secondary mt-1 line-clamp-2 flex-1">{product.descripcion}</p>
+                                            )}
+                                            <div className="mt-3 flex items-end justify-between">
+                                                <div>
+                                                    <p className="text-xs text-text-secondary">Precio</p>
+                                                    <p className="text-lg font-bold text-primary">{formatPrice(product.precio)}</p>
+                                                </div>
+                                                <span className="text-xs text-text-secondary">Stock mín. {product.stock_minimo}</span>
+                                            </div>
+                                            <div className="mt-4 pt-3 border-t border-border/40 flex items-center gap-2">
+                                                <button onClick={() => setShowDetail(product)} className="flex-1 flex justify-center items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-text-secondary hover:text-secondary hover:bg-secondary/10 transition-all" title="Ver detalle">
+                                                    <EyeIcon /> Ver
+                                                </button>
+                                                {canManage && (
+                                                    <>
+                                                        <button onClick={() => openProductForm(product)} className="flex-1 flex justify-center items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-text-secondary hover:text-primary hover:bg-primary/10 transition-all" title="Editar">
+                                                            <EditIcon /> Editar
+                                                        </button>
+                                                        <button onClick={() => handleToggleProduct(product)} className={`px-3 py-2 rounded-xl text-xs font-medium transition-all ${product.estado ? 'text-error hover:bg-error/10' : 'text-fresh hover:bg-fresh/10'}`} title={product.estado ? 'Desactivar' : 'Activar'}>
+                                                            {product.estado ? '✕' : '✓'}
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         )}
                     </div>

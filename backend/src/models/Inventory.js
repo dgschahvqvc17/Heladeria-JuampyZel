@@ -89,6 +89,24 @@ class Inventory {
         return rows;
     }
 
+    static async findActiveBranchIds() {
+        const [rows] = await pool.execute(
+            'SELECT id_sucursal FROM sucursal WHERE estado = 1 ORDER BY id_sucursal ASC'
+        );
+        return rows.map((r) => r.id_sucursal);
+    }
+
+    static async findByProductForUpdate(connection, id_producto) {
+        const [rows] = await connection.execute(
+            `SELECT id_inventario, id_producto, id_sucursal, stock_actual
+             FROM inventario
+             WHERE id_producto = ?
+             FOR UPDATE`,
+            [id_producto]
+        );
+        return rows;
+    }
+
     static async findInventoryForUpdate(connection, { id_producto, id_sucursal }) {
         const [rows] = await connection.execute(
             `SELECT id_inventario, id_producto, id_sucursal, stock_actual

@@ -24,6 +24,14 @@ class User {
         return rows[0];
     }
 
+    static async findByIdWithPassword(id) {
+        const [rows] = await pool.execute(
+            'SELECT id_usuario, nombre, apellido, correo, password, rol, estado FROM usuario WHERE id_usuario = ?',
+            [id]
+        );
+        return rows[0];
+    }
+
     static async create({ nombre, apellido, correo, password, rol }) {
         const [result] = await pool.execute(
             'INSERT INTO usuario (nombre, apellido, correo, password, rol) VALUES (?, ?, ?, ?, ?)',

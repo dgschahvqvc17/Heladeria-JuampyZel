@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { getPublicStats } from '../../services/publicService';
 import Button from '../../components/common/Button';
 import Alert from '../../components/common/Alert';
 
@@ -53,8 +54,19 @@ export default function Login() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [focusedField, setFocusedField] = useState(null);
+    const [stats, setStats] = useState(null);
     const { login } = useAuth();
     const navigate = useNavigate();
+
+    useEffect(() => {
+        let active = true;
+        getPublicStats()
+            .then((res) => {
+                if (active) setStats(res.data);
+            })
+            .catch(() => {});
+        return () => { active = false; };
+    }, []);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -132,15 +144,15 @@ export default function Login() {
 
                     <div className="mt-12 grid grid-cols-3 gap-8 max-w-sm mx-auto">
                         <div className="text-center animate-slide-up" style={{ animationDelay: '0.3s' }}>
-                            <div className="text-3xl font-bold mb-1">100+</div>
-                            <div className="text-sm text-white/70">Sabores</div>
+                            <div className="text-3xl font-bold mb-1">{stats ? stats.total_sabores : '...'}</div>
+                            <div className="text-sm text-white/70">Sabores de helado</div>
                         </div>
                         <div className="text-center animate-slide-up" style={{ animationDelay: '0.5s' }}>
-                            <div className="text-3xl font-bold mb-1">15+</div>
+                            <div className="text-3xl font-bold mb-1">{stats ? stats.total_sucursales : '...'}</div>
                             <div className="text-sm text-white/70">Sucursales</div>
                         </div>
                         <div className="text-center animate-slide-up" style={{ animationDelay: '0.7s' }}>
-                            <div className="text-3xl font-bold mb-1">50K+</div>
+                            <div className="text-3xl font-bold mb-1">{stats ? stats.total_clientes : '...'}</div>
                             <div className="text-sm text-white/70">Clientes</div>
                         </div>
                     </div>
@@ -156,7 +168,7 @@ export default function Login() {
                 {/* Mobile logo (shown only on small screens) */}
                 <div className="lg:hidden absolute top-8 left-1/2 -translate-x-1/2 text-center animate-fade-in">
                     <img
-                        src="/img/JuampyZel_Logo.png"
+                        src="/img/JuampyZel.PNG"
                         alt="Logo JuampyZel"
                         className="h-20 w-auto mx-auto mb-2 drop-shadow-lg"
                     />

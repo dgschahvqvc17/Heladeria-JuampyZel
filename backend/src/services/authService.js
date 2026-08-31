@@ -59,6 +59,39 @@ class AuthService {
             user: userData
         };
     }
+
+    static async changePassword({ idUsuario, passwordActual, passwordNueva }) {
+        if (!passwordActual || !passwordActual.trim()) {
+            throw new Error('Debe ingresar su contraseña actual.');
+        }
+
+        if (!passwordNueva || !passwordNueva.trim()) {
+            throw new Error('Debe ingresar la nueva contraseña.');
+        }
+
+        if (passwordNueva.length < 6) {
+            throw new Error('La nueva contraseña debe tener al menos 6 caracteres.');
+        }
+
+        const user = await UserModel.findByIdWithPassword(idUsuario);
+        if (!user) {
+            throw new Error('Usuario no encontrado.');
+        }
+
+        const passwordValid = await bcrypt.compare(passwordActual, user.password);
+        if (!passwordValid) {
+            throw new Error('La contraseña actual es incorrecta.');
+        }
+
+        if (passwordNueva === passwordActual) {
+            throw new Error('La nueva contraseña debe ser diferente a la actual.');
+        }
+
+        const hashedPassword = await bcrypt.hash(passwordNueva, 10);
+        await UserModel.updatePassword(idUsuario, hashedPassword);
+
+        return true;
+    }
 }
 
 module.exports = AuthService;

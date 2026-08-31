@@ -4,7 +4,9 @@ import {
     getLowStock,
     getMovements,
     getMovementById,
-    createMovement
+    createMovement,
+    adjustStock,
+    updateStockMinimo
 } from '../../services/inventoryService';
 import { getBranches } from '../../services/branchService';
 import { getActiveProducts } from '../../services/productService';
@@ -29,6 +31,9 @@ const AlertIcon = () => (
 );
 const HistoryIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v5h5" /><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8" /><path d="M12 7v5l4 2" /></svg>
+);
+const EditIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>
 );
 
 const MOVEMENT_TYPES = [
@@ -74,6 +79,11 @@ export default function Inventario() {
 
     const [showDetail, setShowDetail] = useState(null);
     const [detailLoading, setDetailLoading] = useState(false);
+
+    const [editProduct, setEditProduct] = useState(null);
+    const [editForm, setEditForm] = useState({ nuevo_stock: '', stock_minimo: '', motivo: '' });
+    const [editError, setEditError] = useState('');
+    const [editSubmitting, setEditSubmitting] = useState(false);
 
     const loadStock = async () => {
         try {
@@ -200,6 +210,73 @@ export default function Inventario() {
         }
     };
 
+    const openEdit = (item) => {
+        setEditProduct(item);
+        setEditForm({ nuevo_stock: String(item.stock_actual), stock_minimo: String(item.stock_minimo), motivo: '' });
+        setEditError('');
+    };
+
+    const closeEdit = () => {
+        setEditProduct(null);
+        setEditForm({ nuevo_stock: '', stock_minimo: '', motivo: '' });
+        setEditError('');
+    };
+
+    const handleEditChange = (e) => {
+        const { name, value } = e.target;
+        setEditForm((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const validateEditForm = (product) => {
+        const nuevoStock = Number(editForm.nuevo_stock);
+        const stockMinimo = Number(editForm.stock_minimo);
+        const stockChanged = Number(editForm.nuevo_stock) !== Number(product.stock_actual);
+        if (editForm.nuevo_stock !== '' && (!Number.isInteger(nuevoStock) || nuevoStock < 0)) {
+            return 'El stock debe ser un número entero mayor o igual a cero.';
+        }
+        if (editForm.stock_minimo !== '' && (!Number.isInteger(stockMinimo) || stockMinimo < 0)) {
+            return 'El stock mínimo debe ser un número entero mayor o igual a cero.';
+        }
+        if (stockChanged && (!editForm.motivo || editForm.motivo.trim().length < 2)) {
+            return 'Debe indicar el motivo del ajuste de stock.';
+        }
+        return '';
+    };
+
+    const handleEditSubmit = async (e) => {
+        e.preventDefault();
+        if (!editProduct) return;
+        const error = validateEditForm(editProduct);
+        if (error) { setEditError(error); return; }
+
+        const stockChanged = Number(editForm.nuevo_stock) !== Number(editProduct.stock_actual);
+        const minimoChanged = Number(editForm.stock_minimo) !== Number(editProduct.stock_minimo);
+        if (!stockChanged && !minimoChanged) {
+            closeEdit();
+            return;
+        }
+
+        try {
+            setEditSubmitting(true);
+            setEditError('');
+            if (stockChanged) {
+                await adjustStock(editProduct.id_producto, {
+                    nuevo_stock: Number(editForm.nuevo_stock),
+                    motivo: editForm.motivo.trim()
+                });
+            }
+            if (minimoChanged) {
+                await updateStockMinimo(editProduct.id_producto, Number(editForm.stock_minimo));
+            }
+            await loadStock();
+            closeEdit();
+        } catch (err) {
+            setEditError(err.message || 'Error al actualizar el inventario.');
+        } finally {
+            setEditSubmitting(false);
+        }
+    };
+
     const formatDate = (value) => {
         return new Date(value).toLocaleString('es-BO', { dateStyle: 'short', timeStyle: 'short' });
     };
@@ -259,6 +336,7 @@ export default function Inventario() {
                                     <th className="px-6 py-4">Stock actual</th>
                                     <th className="px-6 py-4">Stock mín.</th>
                                     <th className="px-6 py-4">Estado</th>
+                                    <th className="px-6 py-4 text-right">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -291,6 +369,13 @@ export default function Inventario() {
                                                     En stock
                                                 </span>
                                             )}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex justify-end">
+                                                <button onClick={() => openEdit(item)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary bg-primary/10 hover:bg-primary/20 transition-colors" title="Editar stock y mínimo">
+                                                    <EditIcon /> Editar
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -428,6 +513,57 @@ export default function Inventario() {
                                 <button type="submit" disabled={submitting} className="flex items-center gap-2 px-5 py-2.5 rounded-btn bg-gradient-to-r from-primary to-secondary text-white text-sm shadow-md disabled:opacity-70">
                                     {submitting && <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>}
                                     Registrar Movimiento
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit stock & minimum modal */}
+            {editProduct && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+                    <div className="glass-card rounded-card w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 animate-scale-in">
+                        <div className="flex items-center justify-between mb-5">
+                            <h3 className="text-xl font-title font-bold text-text-primary">Editar Inventario</h3>
+                            <button onClick={closeEdit} className="p-2 rounded-xl hover:bg-primary/10"><CloseIcon /></button>
+                        </div>
+                        <div className="mb-5 p-4 rounded-input bg-primary/5 border border-primary/10">
+                            <div className="flex items-center gap-4">
+                                <div className="w-14 h-14 rounded-xl overflow-hidden bg-gradient-to-br from-primary/15 to-secondary/15 flex items-center justify-center flex-shrink-0">
+                                    <span className="text-2xl">🍦</span>
+                                </div>
+                                <div>
+                                    <p className="font-bold text-text-primary">{editProduct.nombre}</p>
+                                    <p className="text-sm text-text-secondary">{editProduct.categoria_nombre}</p>
+                                </div>
+                            </div>
+                        </div>
+                        {editError && <div className="p-3 mb-4 rounded-input bg-error/10 text-error text-sm">{editError}</div>}
+                        <form onSubmit={handleEditSubmit} className="space-y-5">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-text-primary mb-1.5">Stock actual (total) *</label>
+                                    <input type="number" name="nuevo_stock" min="0" step="1" value={editForm.nuevo_stock} onChange={handleEditChange} className="w-full px-4 py-3 rounded-input border border-border bg-white/60 focus:ring-2 focus:ring-primary outline-none" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-text-primary mb-1.5">Stock mínimo *</label>
+                                    <input type="number" name="stock_minimo" min="0" step="1" value={editForm.stock_minimo} onChange={handleEditChange} className="w-full px-4 py-3 rounded-input border border-border bg-white/60 focus:ring-2 focus:ring-primary outline-none" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-text-primary mb-1.5">Motivo del ajuste *</label>
+                                <textarea name="motivo" value={editForm.motivo} onChange={handleEditChange} rows="3" placeholder="Ej. Conteo físico, reposición de stock..." className="w-full px-4 py-3 rounded-input border border-border bg-white/60 focus:ring-2 focus:ring-primary outline-none resize-none"></textarea>
+                            </div>
+                            <p className="text-xs text-text-secondary leading-relaxed">
+                                Al guardar, el stock total se reparte proporcionalmente entre las sucursales donde el producto ya tiene inventario
+                                y el cambio quedará registrado como movimiento de ajuste en el historial. El motivo solo se solicita si cambias el stock actual.
+                            </p>
+                            <div className="flex justify-end gap-3 pt-4">
+                                <button type="button" onClick={closeEdit} className="px-6 py-2.5 rounded-btn border border-border text-text-secondary hover:bg-primary/5 text-sm transition-all">Cancelar</button>
+                                <button type="submit" disabled={editSubmitting} className="flex items-center gap-2 px-6 py-2.5 rounded-btn bg-gradient-to-r from-primary to-secondary text-white text-sm shadow-md disabled:opacity-70">
+                                    {editSubmitting && <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>}
+                                    Guardar
                                 </button>
                             </div>
                         </form>

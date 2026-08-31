@@ -52,6 +52,31 @@ class InventoryController {
             res.status(status).json({ success: false, message: error.message });
         }
     }
+
+    static async adjustStock(req, res) {
+        try {
+            const result = await InventoryService.adjustTotalStock(
+                { id_producto: req.params.id, nuevo_stock: req.body.nuevo_stock, motivo: req.body.motivo },
+                req.user.id_usuario
+            );
+            res.status(200).json({ success: true, message: 'Stock del producto ajustado correctamente.', data: result });
+        } catch (error) {
+            const status = error.message.includes('no encontrado') ? 404 : 400;
+            res.status(status).json({ success: false, message: error.message });
+        }
+    }
+
+    static async updateStockMinimo(req, res) {
+        try {
+            const result = await InventoryService.updateStockMinimo(
+                { id_producto: req.params.id, stock_minimo: req.body.stock_minimo }
+            );
+            res.status(200).json({ success: true, message: 'Stock mínimo del producto actualizado correctamente.', data: result });
+        } catch (error) {
+            const status = error.message.includes('no encontrado') ? 404 : 400;
+            res.status(status).json({ success: false, message: error.message });
+        }
+    }
 }
 
 module.exports = InventoryController;

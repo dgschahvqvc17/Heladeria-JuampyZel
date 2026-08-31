@@ -52,3 +52,25 @@ export async function createMovement(movementData) {
     if (!response.ok) throw new Error(data.message || 'Error al registrar el movimiento de inventario.');
     return data;
 }
+
+export async function adjustStock(idProducto, { nuevo_stock, motivo }) {
+    const response = await fetch(`${API_URL}/inventory/${idProducto}/stock`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ nuevo_stock, motivo })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || 'Error al ajustar el stock del producto.');
+    return data;
+}
+
+export async function updateStockMinimo(idProducto, stock_minimo) {
+    const response = await fetch(`${API_URL}/inventory/${idProducto}/stock-minimo`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ stock_minimo })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || 'Error al actualizar el stock mínimo del producto.');
+    return data;
+}

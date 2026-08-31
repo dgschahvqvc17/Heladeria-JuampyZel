@@ -15,6 +15,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Rutas de la API REST
+app.use('/api/public', require('./routes/publicRoutes'));
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/branches', require('./routes/branchRoutes'));
@@ -26,6 +27,7 @@ app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/sales', require('./routes/saleRoutes'));
 app.use('/api/orders', require('./routes/orderRoutes'));
 app.use('/api/inventory', require('./routes/inventoryRoutes'));
+app.use('/api/reports', require('./routes/reportRoutes'));
 
 // Middleware de manejo de errores
 app.use((err, req, res, next) => {

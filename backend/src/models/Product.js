@@ -80,6 +80,14 @@ class Product {
         );
         return result.affectedRows;
     }
+
+    static async updateStockMinimo(id, stock_minimo) {
+        const [result] = await pool.execute(
+            'UPDATE producto SET stock_minimo = ? WHERE id_producto = ?',
+            [stock_minimo, id]
+        );
+        return result.affectedRows;
+    }
 }
 
 module.exports = Product;

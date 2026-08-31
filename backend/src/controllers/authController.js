@@ -46,5 +46,25 @@ class AuthController {
             }
         });
     }
+
+    static async changePassword(req, res) {
+        try {
+            const { password_actual, password_nueva } = req.body;
+            await AuthService.changePassword({
+                idUsuario: req.user.id_usuario,
+                passwordActual: password_actual,
+                passwordNueva: password_nueva
+            });
+            res.status(200).json({
+                success: true,
+                message: 'Contraseña actualizada correctamente.'
+            });
+        } catch (error) {
+            res.status(400).json({
+                success: false,
+                message: error.message || 'Error al cambiar la contraseña.'
+            });
+        }
+    }
 }
 module.exports = AuthController;
