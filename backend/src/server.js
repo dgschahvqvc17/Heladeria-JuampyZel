@@ -1,8 +1,10 @@
-const app = require('./app');
+const path = require('path');
 const dotenv = require('dotenv');
-const { runMigrations } = require('./utils/migrations');
 
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
+
+const app = require('./app');
+const { runMigrations } = require('./utils/migrations');
 
 const PORT = process.env.PORT || 5000;
 
