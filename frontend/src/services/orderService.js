@@ -22,7 +22,7 @@ export async function getOrderById(id) {
     return data;
 }
 
-export async function getCatalogProducts() {
+export async function getCatalog() {
     const response = await fetch(`${API_URL}/orders/catalog/products`, { headers: getAuthHeaders() });
     const data = await response.json();
     if (!response.ok) throw new Error(data.message || 'Error al obtener el catálogo.');
