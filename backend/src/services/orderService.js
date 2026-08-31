@@ -32,7 +32,6 @@ class OrderService {
 
     static async create({ detalles }, userId) {
         const store = await this.getStoreForUser(userId);
-
         this.validateStructure(detalles);
 
         const connection = await pool.getConnection();
@@ -40,11 +39,7 @@ class OrderService {
             await connection.beginTransaction();
 
             const items = await this.validateDetalles(connection, detalles);
-
-            const total = items.reduce(
-                (sum, item) => sum + Number(item.subtotal),
-                0
-            );
+            const total = items.reduce((sum, item) => sum + Number(item.subtotal), 0);
 
             const orderId = await Order.createPedido(connection, {
                 id_tienda: store.id_tienda,
@@ -62,6 +57,14 @@ class OrderService {
                 });
             }
 
+            // Grabar el estado inicial PENDIENTE en el historial
+            await Order.updateStatusWithHistory(connection, {
+                id_pedido: orderId,
+                id_usuario: userId,
+                estado_anterior: 'NUEVO',
+                estado_nuevo: 'PENDIENTE'
+            });
+
             await connection.commit();
             return this.getById(orderId, { rol: 'TIENDA', id_usuario: userId });
         } catch (error) {
@@ -72,30 +75,47 @@ class OrderService {
         }
     }
 
-    static async updateStatus(id, estado, requester) {
+    static async updateStatus(id, estado_nuevo, requester) {
         if (requester.rol === 'TIENDA') {
             throw new Error('La tienda no puede modificar el estado de su pedido.');
         }
 
-        if (!estado || !VALID_STATES.includes(estado)) {
+        if (!estado_nuevo || !VALID_STATES.includes(estado_nuevo)) {
             throw new Error('El estado del pedido no es válido.');
         }
 
         const existing = await Order.findById(id);
         if (!existing) throw new Error('Pedido no encontrado.');
 
-        await Order.updateStatus(id, estado);
-        return this.getById(id, requester);
+        if (existing.estado === estado_nuevo) {
+            throw new Error('El pedido ya se encuentra en este estado.');
+        }
+
+        const connection = await pool.getConnection();
+        try {
+            await connection.beginTransaction();
+            
+            await Order.updateStatusWithHistory(connection, {
+                id_pedido: id,
+                id_usuario: requester.id_usuario,
+                estado_anterior: existing.estado,
+                estado_nuevo: estado_nuevo
+            });
+
+            await connection.commit();
+            return this.getById(id, requester);
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
     }
 
     static async getStoreForUser(userId) {
         const store = await Store.findByUserId(userId);
-        if (!store) {
-            throw new Error('No se encontró una tienda vinculada a esta cuenta.');
-        }
-        if (!store.estado) {
-            throw new Error('La tienda vinculada a esta cuenta está desactivada.');
-        }
+        if (!store) throw new Error('No se encontró una tienda vinculada a esta cuenta.');
+        if (!store.estado) throw new Error('La tienda vinculada a esta cuenta está desactivada.');
         return store;
     }
 
@@ -114,32 +134,18 @@ class OrderService {
         const items = [];
         for (const detalle of detalles) {
             const { id_producto, cantidad } = detalle;
-
-            if (!id_producto) {
-                throw new Error('Debe seleccionar el producto de cada detalle.');
-            }
-
-            if (cantidad === undefined || cantidad === null || cantidad === '') {
-                throw new Error('Debe indicar la cantidad de cada producto.');
-            }
-
+            if (!id_producto) throw new Error('Debe seleccionar el producto de cada detalle.');
+            if (cantidad === undefined || cantidad === null || cantidad === '') throw new Error('Debe indicar la cantidad de cada producto.');
+            
             const quantity = Number(cantidad);
-            if (!Number.isInteger(quantity) || quantity <= 0) {
-                throw new Error('La cantidad debe ser un número entero mayor a cero.');
-            }
+            if (!Number.isInteger(quantity) || quantity <= 0) throw new Error('La cantidad debe ser un número entero mayor a cero.');
 
             const product = await Order.findActiveProduct(connection, id_producto);
-            if (!product) {
-                throw new Error('Uno de los productos seleccionados no existe.');
-            }
-            if (!product.estado) {
-                throw new Error(`El producto "${product.nombre}" está inactivo y no puede solicitarse.`);
-            }
+            if (!product) throw new Error('Uno de los productos seleccionados no existe.');
+            if (!product.estado) throw new Error(`El producto "${product.nombre}" está inactivo y no puede solicitarse.`);
 
             const stockDisponible = await Order.findInventorySum(connection, id_producto);
-            if (quantity > stockDisponible) {
-                throw new Error(`Disponibilidad insuficiente para "${product.nombre}". Disponible: ${stockDisponible}.`);
-            }
+            if (quantity > stockDisponible) throw new Error(`Disponibilidad insuficiente para "${product.nombre}". Disponible: ${stockDisponible}.`);
 
             const precioUnitario = Number(product.precio);
             items.push({
@@ -149,7 +155,6 @@ class OrderService {
                 subtotal: precioUnitario * quantity
             });
         }
-
         return items;
     }
 }

@@ -48,6 +48,17 @@ class Order {
         );
         order.detalles = details;
 
+        const [history] = await pool.execute(
+            `SELECT h.id_historial, h.estado_anterior, h.estado_nuevo, h.fecha_cambio,
+                    CONCAT(u.nombre, ' ', u.apellido) AS usuario
+             FROM historial_pedido h
+             INNER JOIN usuario u ON u.id_usuario = h.id_usuario
+             WHERE h.id_pedido = ?
+             ORDER BY h.fecha_cambio ASC`,
+            [id]
+        );
+        order.historial = history;
+
         return order;
     }
 
@@ -73,6 +84,17 @@ class Order {
             [id]
         );
         order.detalles = details;
+
+        const [history] = await pool.execute(
+            `SELECT h.id_historial, h.estado_anterior, h.estado_nuevo, h.fecha_cambio,
+                    CONCAT(u.nombre, ' ', u.apellido) AS usuario
+             FROM historial_pedido h
+             INNER JOIN usuario u ON u.id_usuario = h.id_usuario
+             WHERE h.id_pedido = ?
+             ORDER BY h.fecha_cambio ASC`,
+            [id]
+        );
+        order.historial = history;
 
         return order;
     }
@@ -126,12 +148,18 @@ class Order {
         return result.insertId;
     }
 
-    static async updateStatus(id, estado) {
-        const [result] = await pool.execute(
+    // Actualizado para grabar el historial dentro de la transacción
+    static async updateStatusWithHistory(connection, { id_pedido, id_usuario, estado_anterior, estado_nuevo }) {
+        await connection.execute(
             'UPDATE pedido SET estado = ? WHERE id_pedido = ?',
-            [estado, id]
+            [estado_nuevo, id_pedido]
         );
-        return result.affectedRows;
+
+        await connection.execute(
+            `INSERT INTO historial_pedido (id_pedido, id_usuario, estado_anterior, estado_nuevo) 
+             VALUES (?, ?, ?, ?)`,
+            [id_pedido, id_usuario, estado_anterior, estado_nuevo]
+        );
     }
 }
 
