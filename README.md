@@ -747,9 +747,16 @@ El backend incluye un sistema de **migraciones versionadas** que se ejecuta auto
 backend/
 |-- migrations/
 |   |-- 202608270001_add_responsable_fk.sql
-|   +-- 202608290001_crear_movimiento_inventario.sql
+|   |-- 202608290001_crear_movimiento_inventario.sql
+|   +-- 202608300003_seed_usuarios_categorias_iniciales.sql
 +-- src/utils/migrations.js   -> Runner de migraciones
 ```
+
+### Seed automatico de usuarios y categorias
+
+En la **primera ejecucion** del servidor, si la base de datos no tiene datos (tablas `usuario` y `categoria` vacias), una migracion de seed inserta automaticamente los **usuarios iniciales** y las **categorias base**. Esto garantiza que el sistema arranque siempre con las credenciales del README disponibles sin necesidad de ejecutar `seed.sql` manualmente.
+
+El seed se aplica solo cuando las tablas estan vacias (no duplica ni pisa datos existentes).
 
 ---
 
@@ -796,11 +803,11 @@ El archivo `juampyzel_database.sql` contiene:
 | **HU07** | Registrar venta | Implementada |
 | **HU08** | Gestionar pedidos de tiendas (portal de tienda) | Implementada |
 | **HU09** | Gestionar inventario | Implementada |
-| **HU10** | Gestionar estados de pedidos | **Pendiente** |
+| **HU10** | Gestionar estados de pedidos | Implementada |
 | **HU11** | Gestionar alertas de stock | Implementada |
 | **HU12** | Consultar reportes basicos | Implementada |
 
-> **Nota:** La unica historia de usuario pendiente es la **HU10 - Gestionar estados de pedidos**. El resto de las historias planificadas en los 3 Sprints estan implementadas, incluyendo funciones adicionales como el modulo **Mi Perfil** (cambio de contrasena) y las **estadisticas publicas** en la pantalla de login.
+> **Nota:** Todas las historias de usuario planificadas en los 3 Sprints estan **implementadas**. Ademas, el sistema incluye funciones adicionales como el modulo **Mi Perfil** (cambio de contrasena) y las **estadisticas publicas** en la pantalla de login.
 
 ---
 
