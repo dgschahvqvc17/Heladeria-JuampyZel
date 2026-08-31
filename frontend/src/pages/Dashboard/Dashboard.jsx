@@ -124,6 +124,7 @@ const navItems = [
     { icon: <CustomersIcon />, label: 'Clientes', path: '/clientes', roles: ['ADMINISTRADOR', 'ENCARGADO_SUCURSAL', 'VENDEDOR', 'INVENTARIO'] },
     { icon: <DollarIcon />, label: 'Ventas', path: '/ventas', roles: ['ADMINISTRADOR', 'ENCARGADO_SUCURSAL', 'VENDEDOR'] },
     { icon: <PackageIcon />, label: 'Inventario', path: '/inventario', roles: ['ADMINISTRADOR', 'INVENTARIO'] },
+    { icon: <BellIcon />, label: 'Alertas', path: '/alertas', roles: ['ADMINISTRADOR', 'INVENTARIO'] },
     { icon: <BarChartIcon />, label: 'Reportes', path: '/reportes', roles: ['ADMINISTRADOR'] },
     { icon: <SettingsIcon />, label: 'Configuracion', path: '/configuracion', roles: ['ADMINISTRADOR'] },
 ];
@@ -259,10 +260,14 @@ export default function Dashboard() {
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
-                            <button className="relative p-2.5 rounded-xl text-white/80 hover:text-white hover:bg-white/20 transition-all">
-                                <BellIcon />
-                                <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-accent rounded-full border-2 border-primary"></span>
-                            </button>
+                            
+                            {(user?.rol === 'ADMINISTRADOR' || user?.rol === 'INVENTARIO') && (
+                                <Link to="/alertas" className="relative p-2.5 rounded-xl text-white/80 hover:text-white hover:bg-white/20 transition-all block">
+                                    <BellIcon />
+                                    <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-accent rounded-full border-2 border-primary"></span>
+                                </Link>
+                            )}
+
                             <div className="hidden sm:flex items-center gap-3 pl-4 border-l border-white/20">
                                 <div className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-white font-bold text-xs">
                                     {user?.nombre?.charAt(0)}{user?.apellido?.charAt(0)}
