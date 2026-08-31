@@ -1,6 +1,7 @@
 const pool = require('../config/database');
 const Inventory = require('../models/Inventory');
 const Branch = require('../models/Branch');
+const Product = require('../models/Product');
 
 const MOVEMENT_TYPES = ['ENTRADA', 'SALIDA', 'AJUSTE'];
 
@@ -89,6 +90,164 @@ class InventoryService {
             throw error;
         } finally {
             connection.release();
+        }
+    }
+
+    static async adjustTotalStock({ id_producto, nuevo_stock, motivo }, userId) {
+        this.validateAdjustData({ id_producto, nuevo_stock, motivo });
+
+        const nuevoStock = Number(nuevo_stock);
+
+        const connection = await pool.getConnection();
+        try {
+            await connection.beginTransaction();
+
+            const product = await Inventory.findProduct(connection, id_producto);
+            if (!product) throw new Error('El producto seleccionado no existe.');
+
+            const inventories = await Inventory.findByProductForUpdate(connection, id_producto);
+            const currentTotal = inventories.reduce((sum, inv) => sum + inv.stock_actual, 0);
+
+            if (inventories.length === 0) {
+                const branchIds = await Inventory.findActiveBranchIds();
+                if (branchIds.length === 0) {
+                    throw new Error('No hay sucursales activas para asignar el stock.');
+                }
+                const idSucursal = branchIds[0];
+                await Inventory.createStock(connection, {
+                    id_producto,
+                    id_sucursal: idSucursal,
+                    stock_actual: nuevoStock
+                });
+                await Inventory.createMovement(connection, {
+                    id_producto,
+                    id_sucursal: idSucursal,
+                    id_usuario: userId,
+                    tipo: 'AJUSTE',
+                    cantidad: nuevoStock,
+                    stock_anterior: 0,
+                    stock_resultante: nuevoStock,
+                    motivo
+                });
+            } else {
+                if (nuevoStock === currentTotal) {
+                    await connection.commit();
+                    return { stock_actual: currentTotal, distribuido: false };
+                }
+                const targets = this.distributeStock(nuevoStock, inventories.map((inv) => inv.stock_actual));
+                for (let i = 0; i < inventories.length; i++) {
+                    const inv = inventories[i];
+                    const target = targets[i];
+                    if (target === inv.stock_actual) continue;
+                    const diff = target - inv.stock_actual;
+                    await Inventory.updateStock(connection, inv.id_inventario, target);
+                    await Inventory.createMovement(connection, {
+                        id_producto,
+                        id_sucursal: inv.id_sucursal,
+                        id_usuario: userId,
+                        tipo: 'AJUSTE',
+                        cantidad: diff,
+                        stock_anterior: inv.stock_actual,
+                        stock_resultante: target,
+                        motivo
+                    });
+                }
+            }
+
+            await connection.commit();
+            return { stock_actual: nuevoStock, distribuido: true };
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
+    }
+
+    static validateAdjustData({ id_producto, nuevo_stock, motivo }) {
+        if (!id_producto) {
+            throw new Error('Debe seleccionar el producto.');
+        }
+
+        if (nuevo_stock === undefined || nuevo_stock === null || nuevo_stock === '') {
+            throw new Error('Debe indicar el nuevo stock del producto.');
+        }
+
+        const value = Number(nuevo_stock);
+        if (!Number.isInteger(value) || value < 0) {
+            throw new Error('El stock debe ser un número entero mayor o igual a cero.');
+        }
+
+        const reason = motivo ? String(motivo).trim() : '';
+        if (!reason) {
+            throw new Error('Debe indicar el motivo del ajuste.');
+        }
+        if (reason.length < 2) {
+            throw new Error('El motivo del ajuste debe tener al menos 2 caracteres.');
+        }
+    }
+
+    static distributeStock(total, weights) {
+        const n = weights.length;
+        if (n === 0) return [];
+        if (total <= 0) return weights.map(() => 0);
+
+        const sumWeights = weights.reduce((a, b) => a + b, 0);
+        if (sumWeights <= 0) {
+            const base = Math.floor(total / n);
+            let remainder = total - base * n;
+            const result = new Array(n).fill(base);
+            for (let i = 0; i < n && remainder > 0; i++, remainder--) {
+                result[i] += 1;
+            }
+            return result;
+        }
+
+        const base = [];
+        let assigned = 0;
+        for (let i = 0; i < n; i++) {
+            const value = Math.floor((weights[i] * total) / sumWeights);
+            base.push(value);
+            assigned += value;
+        }
+        let remainder = total - assigned;
+        let idx = 0;
+        while (remainder > 0) {
+            base[idx % n] += 1;
+            remainder -= 1;
+            idx += 1;
+        }
+        return base;
+    }
+
+    static async updateStockMinimo({ id_producto, stock_minimo }) {
+        this.validateStockMinimo({ id_producto, stock_minimo });
+        const connection = await pool.getConnection();
+        try {
+            await connection.beginTransaction();
+            const product = await Inventory.findProduct(connection, id_producto);
+            if (!product) throw new Error('El producto seleccionado no existe.');
+            await Product.updateStockMinimo(id_producto, Number(stock_minimo));
+            await connection.commit();
+            return { id_producto, stock_minimo: Number(stock_minimo) };
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
+    }
+
+    static validateStockMinimo({ id_producto, stock_minimo }) {
+        if (!id_producto) {
+            throw new Error('Debe seleccionar el producto.');
+        }
+        if (stock_minimo === undefined || stock_minimo === null || stock_minimo === '') {
+            throw new Error('Debe indicar el stock mínimo del producto.');
+        }
+        const value = Number(stock_minimo);
+        if (!Number.isInteger(value) || value < 0) {
+            throw new Error('El stock mínimo debe ser un número entero mayor o igual a cero.');
         }
     }
 

@@ -2,7 +2,7 @@
 
 Sistema web empresarial para la gestion de la heladeria **JuampyZel**.
 
-La aplicacion centraliza y administra las operaciones de la empresa: sucursales, ventas, pedidos de abastecimiento de tiendas, inventario, clientes, usuarios y roles, y reportes.
+La aplicacion centraliza y administra las operaciones de la empresa: sucursales, tiendas, pedidos de abastecimiento, ventas, inventario, alertas de stock, clientes, usuarios y roles, dashboard con metricas y reportes exportables. Incluye ademas un modulo de **Mi Perfil** para que cada usuario consulte sus datos y cambie su contrasena.
 
 ---
 
@@ -11,6 +11,8 @@ La aplicacion centraliza y administra las operaciones de la empresa: sucursales,
 | Capa | Tecnologia |
 |------|-----------|
 | Frontend | React, JavaScript, HTML5, Tailwind CSS, Vite |
+| Graficas | Recharts (dashboard y reportes) |
+| Exportacion | jsPDF + jspdf-autotable (PDF), SheetJS xlsx (Excel) |
 | Backend | Node.js, Express.js, JavaScript |
 | Base de datos | MySQL (InnoDB) |
 | Auth | bcrypt (hashing), JWT (tokens) |
@@ -40,18 +42,21 @@ juampyzel/
 |   |-- src/
 |   |   |-- components/common/  -> Button, Input, Alert
 |   |   |-- context/            -> AuthContext (gestion de sesion)
-|   |   |-- pages/Login/        -> Pantalla de inicio de sesion
-|   |   |-- pages/Dashboard/    -> Dashboard tras login
+|   |   |-- pages/Login/        -> Pantalla de inicio de sesion (estadisticas publicas)
+|   |   |-- pages/Dashboard/    -> Dashboard con KPIs y graficas tras login
 |   |   |-- pages/Usuarios/     -> Gestion de usuarios (HU02)
 |   |   |-- pages/Sucursales/   -> Gestion de sucursales (HU04)
 |   |   |-- pages/Clientes/     -> Gestion de clientes (HU05)
 |   |   |-- pages/Ventas/       -> Registro de ventas y punto de venta (HU07)
-|   |   |-- pages/Pedidos/      -> Gestion de pedidos y actualizacion de estado (HU08)
+|   |   |-- pages/Pedidos/      -> Gestion de pedidos y actualizacion de estado (HU08/HU10)
 |   |   |-- pages/Tienda/       -> Portal de tienda: catalogo, pedido y mis pedidos (HU08)
-|   |   |-- pages/Inventario/   -> Stock y movimientos de inventario (HU09)
-|   |   |-- pages/Productos/    -> Gestion de productos y categorias (HU03)
+|   |   |-- pages/Inventario/   -> Stock, movimientos y edicion de stock (HU09)
+|   |   |-- pages/Productos/    -> Catalogo tipo marketplace (vista de tarjetas) (HU03)
+|   |   |-- pages/Alertas/      -> Alertas de stock bajo (HU11)
+|   |   |-- pages/Reportes/     -> Reportes basicos con graficas y exportacion (HU12)
+|   |   |-- pages/MiPerfil/     -> Mi perfil: ver datos y cambiar contrasena
 |   |   |-- routes/             -> AppRoutes, ProtectedRoute, PublicRoute
-|   |   |-- services/           -> authService, userService, branchService, customerService, productService, categoryService, saleService, orderService, inventoryService (HTTP calls)
+|   |   |-- services/           -> authService, userService, branchService, customerService, productService, categoryService, saleService, orderService, inventoryService, reportService, publicService (HTTP calls)
 |   |   |-- App.jsx
 |   |   |-- main.jsx
 |   |   +-- index.css
@@ -68,7 +73,7 @@ juampyzel/
 |   |   |   |-- database.js     -> Pool de conexiones MySQL
 |   |   |   +-- jwt.js          -> Configuracion JWT
 |   |   |-- controllers/
-|   |   |   |-- authController.js -> Login, logout, me
+|   |   |   |-- authController.js -> Login, logout, me, cambiar contrasena
 |   |   |   |-- userController.js -> CRUD de usuarios (HU02)
 |   |   |   |-- branchController.js -> CRUD de sucursales (HU04)
 |   |   |   |-- customerController.js -> CRUD de clientes (HU05)
@@ -76,7 +81,11 @@ juampyzel/
 |   |   |   |-- categoryController.js -> CRUD de categorias (HU03)
 |   |   |   |-- saleController.js  -> Registro y consulta de ventas (HU07)
 |   |   |   |-- orderController.js -> Consulta, creacion y estado de pedidos (HU08)
-|   |   |   +-- inventoryController.js -> Consulta de stock y movimientos (HU09)
+|   |   |   |-- inventoryController.js -> Stock, movimientos y ajuste de stock (HU09)
+|   |   |   |-- alertController.js -> Consulta y atencion de alertas (HU11)
+|   |   |   |-- reportController.js -> Reportes y dashboard (HU12)
+|   |   |   |-- storeController.js -> Gestion de tiendas (HU06)
+|   |   |   +-- publicController.js -> Estadisticas publicas (login)
 |   |   |-- services/
 |   |   |   |-- authService.js    -> Logica de negocio de auth
 |   |   |   |-- userService.js    -> Logica de negocio de usuarios (HU02)
@@ -86,7 +95,11 @@ juampyzel/
 |   |   |   |-- categoryService.js -> Logica de negocio de categorias (HU03)
 |   |   |   |-- saleService.js     -> Logica de negocio de ventas (HU07)
 |   |   |   |-- orderService.js    -> Consulta, creacion y estado de pedidos (HU08)
-|   |   |   +-- inventoryService.js -> Logica de stock y movimientos (HU09)
+|   |   |   |-- inventoryService.js -> Logica de stock y movimientos (HU09)
+|   |   |   |-- alertService.js    -> Logica de alertas de stock (HU11)
+|   |   |   |-- reportService.js   -> Logica de reportes (HU12)
+|   |   |   |-- storeService.js    -> Logica de tiendas (HU06)
+|   |   |   +-- publicService.js   -> Logica de estadisticas publicas
 |   |   |-- models/
 |   |   |   |-- User.js           -> Consultas a tabla usuario
 |   |   |   |-- Branch.js         -> Consultas a tabla sucursal
@@ -96,7 +109,10 @@ juampyzel/
 |   |   |   |-- Sale.js           -> Consultas a tablas venta/detalle_venta (HU07)
 |   |   |   |-- Store.js          -> Consultas a tabla tienda (HU08)
 |   |   |   |-- Order.js          -> Consultas a tablas pedido/detalle_pedido (HU08)
-|   |   |   +-- Inventory.js      -> Consultas a tablas inventario/movimiento_inventario (HU09)
+|   |   |   |-- Inventory.js      -> Consultas a tablas inventario/movimiento_inventario (HU09)
+|   |   |   |-- Alert.js          -> Consultas a tabla alerta_stock (HU11)
+|   |   |   |-- Report.js         -> Agregaciones para reportes y dashboard (HU12)
+|   |   |   +-- PublicStats.js    -> Estadisticas publicas para el login
 |   |   |-- middlewares/
 |   |   |   |-- authMiddleware.js -> Verificacion de JWT
 |   |   |   +-- roleMiddleware.js -> Verificacion de roles (HU02)
@@ -111,7 +127,11 @@ juampyzel/
 |   |   |   |-- categoryRoutes.js -> Endpoints /api/categories/* (HU03)
 |   |   |   |-- saleRoutes.js     -> Endpoints /api/sales/* (HU07)
 |   |   |   |-- orderRoutes.js    -> Endpoints /api/orders/* (HU08)
-|   |   |   +-- inventoryRoutes.js -> Endpoints /api/inventory/* (HU09)
+|   |   |   |-- inventoryRoutes.js -> Endpoints /api/inventory/* (HU09)
+|   |   |   |-- alertRoutes.js    -> Endpoints /api/alerts/* (HU11)
+|   |   |   |-- reportRoutes.js   -> Endpoints /api/reports/* (HU12)
+|   |   |   |-- storeRoutes.js    -> Endpoints /api/stores/* (HU06)
+|   |   |   +-- publicRoutes.js   -> Endpoints /api/public/*
 |   |   |-- app.js              -> Express app + middleware + rutas
 |   |   +-- server.js           -> Punto de entrada (ejecuta migraciones)
 |   |-- .env                   -> Variables de entorno
@@ -274,6 +294,7 @@ http://localhost:5173
 | POST | `/api/auth/login` | Iniciar sesion (recibe `correo` y `password`) |
 | POST | `/api/auth/logout` | Cerrar sesion |
 | GET | `/api/auth/me` | Obtener usuario autenticado (requiere token) |
+| PUT | `/api/auth/change-password` | Cambiar contrasena (recibe `password_actual` y `password_nueva`) |
 
 **Ejemplo de login:**
 
@@ -306,6 +327,43 @@ Usa el token en el header de las peticiones protegidas:
 
 ```
 Authorization: Bearer <jwt_token>
+```
+
+### Cambiar contrasena (Mi Perfil)
+
+Disponible para todos los usuarios autenticados desde la seccion **Mi Perfil** (`/configuracion`). El campo `password_actual` debe ser correcto y `password_nueva` debe tener al menos 6 caracteres y ser distinta a la actual.
+
+```bash
+curl -X PUT http://localhost:5000/api/auth/change-password \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{
+    "password_actual": "admin123",
+    "password_nueva": "nueva123456"
+  }'
+```
+
+### Estadisticas publicas (pantalla de login)
+
+El panel de inicio de sesion muestra datos reales de la base de datos (sabores de helado, sucursales y clientes):
+
+| Metodo | Endpoint | Descripcion |
+|--------|----------|-------------|
+| GET | `/api/public/stats` | Contadores publicos: `total_sabores`, `total_sucursales`, `total_clientes` (sin autenticacion) |
+
+```bash
+curl http://localhost:5000/api/public/stats
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "total_sabores": 1,
+    "total_sucursales": 1,
+    "total_clientes": 1
+  }
+}
 ```
 
 ---
@@ -596,6 +654,8 @@ curl -X PATCH http://localhost:5000/api/orders/1/status \
 | GET | `/api/inventory/movements` | Listar movimientos de inventario (filtros por `producto`, `sucursal` y `tipo`) |
 | GET | `/api/inventory/movements/:id` | Obtener detalle de un movimiento |
 | POST | `/api/inventory/movements` | Registrar un movimiento (entrada, salida o ajuste) |
+| PUT | `/api/inventory/:id/stock` | Ajustar el stock total de un producto (recibe `nuevo_stock` y `motivo`) |
+| PUT | `/api/inventory/:id/stock-minimo` | Editar el stock minimo de un producto (recibe `stock_minimo`) |
 
 **Tipos de movimiento:**
 
@@ -620,6 +680,58 @@ curl -X POST http://localhost:5000/api/inventory/movements \
 ```
 
 El backend valida el tipo de movimiento, el producto, la sucursal y la existencia de stock suficiente, y registra el movimiento junto con la actualizacion del stock (`stock_anterior`, `stock_resultante`) dentro de una transaccion. Los movimientos registran automaticamente el usuario y la fecha/hora.
+
+### Edicion de stock desde el modulo de inventario
+
+Desde cada fila de la tabla de stock se puede editar:
+- **Stock actual (total)**: fija un nuevo valor de stock total; el backend lo reparte proporcionalmente entre las sucursales donde el producto ya tiene inventario y registra un movimiento `AJUSTE` por cada sucursal modificada.
+- **Stock minimo**: edita el campo `stock_minimo` del producto (nivel de alerta).
+
+**Ejemplo — Ajustar stock total:**
+
+```bash
+curl -X PUT http://localhost:5000/api/inventory/1/stock \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{ "nuevo_stock": 50, "motivo": "Conteo fisico" }'
+```
+
+**Ejemplo — Editar stock minimo:**
+
+```bash
+curl -X PUT http://localhost:5000/api/inventory/1/stock-minimo \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{ "stock_minimo": 10 }'
+```
+
+---
+
+## Endpoints de alertas de stock (HU11)
+
+> Todos los endpoints requieren autenticacion (Bearer token) y rol `ADMINISTRADOR` o `INVENTARIO`.
+
+| Metodo | Endpoint | Descripcion |
+|--------|----------|-------------|
+| GET | `/api/alerts` | Listar alertas de bajo stock (se generan al comparar stock actual con `stock_minimo`) |
+| GET | `/api/alerts/:id` | Obtener detalle de una alerta |
+| PATCH | `/api/alerts/:id/attend` | Marcar una alerta como atendida |
+
+---
+
+## Endpoints de reportes (HU12)
+
+> Requieren autenticacion (Bearer token). Los reportes de ventas, pedidos, productos e inventario son exclusivos del rol `ADMINISTRADOR`. El dashboard esta disponible para `ADMINISTRADOR`, `ENCARGADO_SUCURSAL`, `INVENTARIO` y `VENDEDOR`.
+
+| Metodo | Endpoint | Descripcion |
+|--------|----------|-------------|
+| GET | `/api/reports/sales` | Reporte de ventas (filtros `fecha_inicio`, `fecha_fin`, `sucursal`) |
+| GET | `/api/reports/orders` | Reporte de pedidos (filtros `fecha_inicio`, `fecha_fin`, `estado`) |
+| GET | `/api/reports/products` | Reporte de productos (incluye bajo stock) |
+| GET | `/api/reports/inventory` | Reporte de movimientos de inventario |
+| GET | `/api/reports/dashboard` | KPIs y datos para graficas del dashboard |
+
+El modulo de **Reportes** (`/reportes`) permite consultar la informacion en tablas, filtrarla por fechas y estados, y **exportarla a PDF (jsPDF) o Excel (SheetJS)**. El **Dashboard** (`/`) muestra KPIs (ventas, ingresos, pedidos, productos, unidades, sucursales, clientes) y graficas de tipo pastel (ventas por sucursal, pedidos por estado, productos por categoria) ademas de un panel de productos con bajo stock.
 
 ---
 
@@ -654,6 +766,7 @@ cliente         -> Clientes que compran en sucursales
 tienda          -> Tiendas que piden abastecimiento
 inventario      -> Stock por producto y sucursal
 movimiento_inventario -> Historia de entradas, salidas y ajustes de stock
+alerta_stock    -> Alertas de productos con bajo stock
 venta           -> Ventas realizadas en sucursales
 detalle_venta   -> Productos de cada venta
 pedido          -> Pedidos de tiendas
@@ -679,10 +792,15 @@ El archivo `juampyzel_database.sql` contiene:
 | **HU03** | Gestionar productos y categorias | Implementada |
 | **HU04** | Gestionar sucursales | Implementada |
 | **HU05** | Gestionar clientes | Implementada |
+| **HU06** | Gestionar tiendas | Implementada |
 | **HU07** | Registrar venta | Implementada |
-| **HU08** | Gestionar pedidos de tiendas | Implementada |
+| **HU08** | Gestionar pedidos de tiendas (portal de tienda) | Implementada |
 | **HU09** | Gestionar inventario | Implementada |
-| HU06, HU10-HU12 | (Sprints 2 y 3) | Pendientes |
+| **HU10** | Gestionar estados de pedidos | **Pendiente** |
+| **HU11** | Gestionar alertas de stock | Implementada |
+| **HU12** | Consultar reportes basicos | Implementada |
+
+> **Nota:** La unica historia de usuario pendiente es la **HU10 - Gestionar estados de pedidos**. El resto de las historias planificadas en los 3 Sprints estan implementadas, incluyendo funciones adicionales como el modulo **Mi Perfil** (cambio de contrasena) y las **estadisticas publicas** en la pantalla de login.
 
 ---
 

@@ -17,4 +17,8 @@ router.post('/movements', authMiddleware, roleMiddleware(INVENTORY_ROLES), Inven
 router.get('/movements', authMiddleware, roleMiddleware(INVENTORY_ROLES), InventoryController.getMovements);
 router.get('/movements/:id', authMiddleware, roleMiddleware(INVENTORY_ROLES), InventoryController.getMovementById);
 
+// Ajuste del stock total de un producto y de su stock mínimo.
+router.put('/:id/stock', authMiddleware, roleMiddleware(INVENTORY_ROLES), InventoryController.adjustStock);
+router.put('/:id/stock-minimo', authMiddleware, roleMiddleware(INVENTORY_ROLES), InventoryController.updateStockMinimo);
+
 module.exports = router;

@@ -1,6 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useAuth } from '../../context/AuthContext';
+import { getDashboardData } from '../../services/reportService';
+
+const CHART_COLORS = ['#FF6B9A', '#7C5CFC', '#FFD166', '#6DD6A0', '#6EA8FE', '#FF6B6B', '#E85588', '#6A4DE0'];
 
 const HomeIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -113,6 +117,8 @@ const IceCreamIcon = () => (
     </svg>
 );
 
+const ALL_ROLES = ['ADMINISTRADOR', 'ENCARGADO_SUCURSAL', 'INVENTARIO', 'VENDEDOR', 'TIENDA'];
+
 const navItems = [
     { icon: <HomeIcon />, label: 'Dashboard', path: '/', roles: ['ADMINISTRADOR', 'ENCARGADO_SUCURSAL', 'INVENTARIO'] },
     { icon: <UsersIcon />, label: 'Usuarios', path: '/usuarios', roles: ['ADMINISTRADOR'] },
@@ -126,13 +132,35 @@ const navItems = [
     { icon: <PackageIcon />, label: 'Inventario', path: '/inventario', roles: ['ADMINISTRADOR', 'INVENTARIO'] },
     { icon: <BellIcon />, label: 'Alertas', path: '/alertas', roles: ['ADMINISTRADOR', 'INVENTARIO'] },
     { icon: <BarChartIcon />, label: 'Reportes', path: '/reportes', roles: ['ADMINISTRADOR'] },
-    { icon: <SettingsIcon />, label: 'Configuracion', path: '/configuracion', roles: ['ADMINISTRADOR'] },
+    { icon: <SettingsIcon />, label: 'Mi Perfil', path: '/configuracion', roles: ALL_ROLES },
 ];
 
 export default function Dashboard() {
     const { user, logout } = useAuth();
     const location = useLocation();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [dashboard, setDashboard] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        let active = true;
+        const load = async () => {
+            if (user?.rol === 'TIENDA') {
+                setLoading(false);
+                return;
+            }
+            try {
+                const data = await getDashboardData();
+                if (active) setDashboard(data);
+            } catch (err) {
+                console.error(err);
+            } finally {
+                if (active) setLoading(false);
+            }
+        };
+        load();
+        return () => { active = false; };
+    }, [user?.rol]);
 
     const filteredNavItems = useMemo(() => {
         return navItems.filter((item) => {
@@ -149,6 +177,50 @@ export default function Dashboard() {
         if (hour < 18) return 'Buenas tardes';
         return 'Buenas noches';
     };
+
+    const formatPrice = (value) => {
+        return new Intl.NumberFormat('es-BO', {
+            style: 'currency',
+            currency: 'BOB'
+        }).format(Number(value) || 0);
+    };
+
+    const kpis = dashboard?.kpis || null;
+    const charts = dashboard?.charts || null;
+
+    const renderPie = (data, label, emptyText) => {
+        const filtered = (data || []).filter((d) => Number(d.value) > 0);
+        if (filtered.length === 0) {
+            return (
+                <div className="flex flex-col items-center justify-center h-56 text-text-secondary text-sm text-center px-4">
+                    {emptyText || 'Sin datos'}
+                </div>
+            );
+        }
+        return (
+            <div className="h-56 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                        <Pie data={filtered} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={(entry) => entry.name}>
+                            {filtered.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                            ))}
+                        </Pie>
+                        <Tooltip formatter={(value) => `${value} ${label}`} />
+                    </PieChart>
+                </ResponsiveContainer>
+            </div>
+        );
+    };
+
+    const kpiCards = [
+        { label: 'Ventas', value: kpis ? kpis.total_ventas : 0, sub: kpis ? formatPrice(kpis.total_ingresos) : '', color: 'from-primary to-secondary' },
+        { label: 'Pedidos', value: kpis ? kpis.total_pedidos : 0, sub: kpis ? formatPrice(kpis.total_pedidos_monto) : '', color: 'from-secondary to-accent' },
+        { label: 'Productos', value: kpis ? kpis.total_productos : 0, sub: kpis ? `${kpis.total_bajo_stock} en bajo stock` : '', color: 'from-accent to-primary' },
+        { label: 'Unidades en stock', value: kpis ? kpis.unidades_totales : 0, sub: kpis ? '' : '', color: 'from-fresh to-secondary' },
+        { label: 'Sucursales', value: kpis ? kpis.total_sucursales : 0, sub: kpis ? `${kpis.total_tiendas} tiendas` : '', color: 'from-primary to-fresh' },
+        { label: 'Clientes', value: kpis ? kpis.total_clientes : 0, sub: '', color: 'from-secondary to-fresh' }
+    ];
 
     return (
         <div className="min-h-screen bg-background flex">
@@ -286,24 +358,80 @@ export default function Dashboard() {
                 {/* Content */}
                 <main className="flex-1 p-6">
                     {location.pathname === '/' ? (
-                        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-fade-in">
-                            <div className="relative mb-6">
-                                <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-full blur-3xl scale-150 animate-pulse-glow"></div>
-                                <div className="relative text-primary/40">
-                                    <IceCreamIcon />
+                        user?.rol === 'TIENDA' ? (
+                            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-fade-in">
+                                <div className="relative mb-6">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-full blur-3xl scale-150 animate-pulse-glow"></div>
+                                    <div className="relative text-primary/40">
+                                        <IceCreamIcon />
+                                    </div>
+                                </div>
+                                <h3 className="text-2xl font-title font-bold text-text-primary mb-2">
+                                    Bienvenido, {user?.tienda?.nombre || user?.nombre}
+                                </h3>
+                                <p className="text-text-secondary max-w-md">
+                                    Gestiona tus pedidos desde el catalogo disponible.
+                                </p>
+                            </div>
+                        ) : loading ? (
+                            <div className="flex items-center justify-center min-h-[60vh]">
+                                <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent"></div>
+                            </div>
+                        ) : (
+                            <div className="animate-fade-in space-y-6">
+                                {/* KPI cards */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                                    {kpiCards.map((kpi, idx) => (
+                                        <div key={idx} className="glass-card rounded-card p-5 relative overflow-hidden group hover:shadow-lg transition-shadow">
+                                            <div className={`absolute top-0 left-0 h-1.5 w-full bg-gradient-to-r ${kpi.color}`}></div>
+                                            <p className="text-3xl font-title font-extrabold text-text-primary">
+                                                {kpi.value}
+                                            </p>
+                                            <p className="text-sm font-medium text-text-secondary mt-1">{kpi.label}</p>
+                                            {kpi.sub && <p className="text-xs text-secondary mt-1 font-medium">{kpi.sub}</p>}
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Charts */}
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                                    <div className="glass-card rounded-card p-5">
+                                        <h4 className="text-sm font-bold text-text-primary mb-2">Ventas por sucursal</h4>
+                                        {renderPie(charts?.salesByBranch, 'ventas', 'No hay ventas registradas.')}
+                                    </div>
+                                    <div className="glass-card rounded-card p-5">
+                                        <h4 className="text-sm font-bold text-text-primary mb-2">Pedidos por estado</h4>
+                                        {renderPie(charts?.ordersByEstado, 'pedidos', 'No hay pedidos registrados.')}
+                                    </div>
+                                    <div className="glass-card rounded-card p-5">
+                                        <h4 className="text-sm font-bold text-text-primary mb-2">Productos por categoría</h4>
+                                        {renderPie(charts?.productsByCategory, 'productos', 'No hay productos registrados.')}
+                                    </div>
+                                </div>
+
+                                {/* Low stock */}
+                                <div className="glass-card rounded-card p-5">
+                                    <h4 className="text-sm font-bold text-text-primary mb-3">Alerta de bajo stock</h4>
+                                    {charts?.lowStock?.length ? (
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                            {charts.lowStock.map((p, idx) => (
+                                                <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-error/10 border border-error/20">
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-semibold text-text-primary truncate">{p.name}</p>
+                                                        <p className="text-xs text-text-secondary">Mínimo: {p.stock_minimo}</p>
+                                                    </div>
+                                                    <span className="text-sm font-bold text-error flex-shrink-0">{p.value} unid.</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-center py-8 text-fresh text-sm">
+                                            Todos los productos tienen stock suficiente.
+                                        </div>
+                                    )}
                                 </div>
                             </div>
-                            <h3 className="text-2xl font-title font-bold text-text-primary mb-2">
-                                {user?.rol === 'TIENDA'
-                                    ? `Bienvenido, ${user?.tienda?.nombre || user?.nombre}`
-                                    : 'Bienvenido a JuampyZel'}
-                            </h3>
-                            <p className="text-text-secondary max-w-md">
-                                {user?.rol === 'TIENDA'
-                                    ? 'Gestiona tus pedidos desde el catalogo disponible.'
-                                    : 'El panel de control estara disponible cuando se conecte a la base de datos.'}
-                            </p>
-                        </div>
+                        )
                     ) : (
                         <Outlet />
                     )}
