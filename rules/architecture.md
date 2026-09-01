@@ -34,6 +34,8 @@ La arquitectura utilizará las siguientes tecnologías principales:
 * JavaScript
 * HTML5
 * Tailwind CSS
+* Vite
+* @supabase/supabase-js (cliente opcional del lado del frontend)
 
 ### Backend
 
@@ -42,7 +44,8 @@ La arquitectura utilizará las siguientes tecnologías principales:
 
 ### Base de datos
 
-* MySQL
+* Supabase (PostgreSQL)
+* @supabase/supabase-js (cliente para el acceso a los datos)
 
 ### Control de versiones
 
@@ -70,7 +73,7 @@ Backend
     └── Services
             │
             ▼
-          MySQL
+    Supabase (PostgreSQL)
 ```
 
 La separación de responsabilidades es obligatoria.
@@ -103,7 +106,7 @@ El backend será responsable de:
 * Autorización.
 * Acceso a datos.
 * Reglas del sistema.
-* Comunicación con MySQL.
+* Comunicación con Supabase (PostgreSQL).
 * API REST.
 
 ---
@@ -283,7 +286,7 @@ Express.js
 +
 MVC
 +
-MySQL
+Supabase (PostgreSQL)
 ```
 
 Su responsabilidad será procesar las solicitudes provenientes del frontend.
@@ -309,13 +312,13 @@ Service
 Model
   │
   ▼
-MySQL
+Supabase (PostgreSQL)
 ```
 
 La respuesta seguirá el camino inverso:
 
 ```text
-MySQL
+Supabase (PostgreSQL)
   │
   ▼
 Model
@@ -345,6 +348,7 @@ backend/
 ├── src/
 │   │
 │   ├── config/
+│   │   └── supabase.js    → Cliente único de Supabase (SERVICE ROLE key)
 │   │
 │   ├── routes/
 │   │
@@ -359,8 +363,7 @@ backend/
 │   ├── validators/
 │   │
 │   ├── utils/
-│   │
-│   ├── database/
+│   │   └── unwrap.js      → Helper para respuestas de Supabase ({ data, error })
 │   │
 │   ├── app.js
 │   └── server.js
@@ -370,18 +373,20 @@ backend/
 └── ...
 ```
 
+El esquema de la base de datos (tablas, vistas, funciones RPC y RLS) vive en `supabase/schema.sql` en la raíz del proyecto.
+
 ---
 
 # 11. Model
 
-Los Models representan la interacción con la base de datos MySQL.
+Los Models representan la interacción con la base de datos Supabase (PostgreSQL) mediante `@supabase/supabase-js`.
 
 Los modelos serán responsables de:
 
-* Consultar registros.
+* Consultar tablas y vistas (`supabase.from(...)`).
 * Insertar registros.
 * Actualizar registros.
-* Eliminar registros.
+* Ejecutar funciones RPC (`supabase.rpc(...)`).
 * Ejecutar consultas relacionadas con una entidad.
 
 Ejemplos:
@@ -540,11 +545,11 @@ Responsabilidades:
 
 ---
 
-# 16. Base de datos MySQL
+# 16. Base de datos Supabase (PostgreSQL)
 
-El sistema utilizará **MySQL** como sistema de gestión de base de datos.
+El sistema utilizará **Supabase (PostgreSQL)** como sistema de gestión de base de datos.
 
-La base de datos debe estar correctamente normalizada y utilizar relaciones entre las entidades.
+La base de datos debe estar correctamente normalizada y utilizar relaciones entre las entidades (constraints, índices y triggers).
 
 La información relacionada con:
 
@@ -559,16 +564,20 @@ La información relacionada con:
 * Detalles de pedidos.
 * Ventas.
 * Inventario.
+* Movimientos de inventario.
+* Alertas de stock.
 
-debe almacenarse en MySQL.
+debe almacenarse en PostgreSQL.
+
+El esquema se define en `supabase/schema.sql` (tablas, vistas, funciones RPC y RLS).
 
 ---
 
-# 17. Regla de acceso a MySQL
+# 17. Regla de acceso a la base de datos
 
-El frontend React **nunca debe conectarse directamente a MySQL**.
+El frontend React **nunca debe conectarse directamente para escribir** en la base de datos; consume la API REST del backend.
 
-Flujo obligatorio:
+Flujo obligatorio (escrituras):
 
 ```text
 React
@@ -583,19 +592,24 @@ Node.js / Express
 Models / Services
   │
   ▼
-MySQL
+Supabase (PostgreSQL)
 ```
 
-Nunca:
+Acceso directo permitido (opcional, solo lectura):
 
 ```text
-React
+React (publishable key)
   │
   ▼
-MySQL
+Supabase (políticas RLS SELECT del catálogo activo)
 ```
 
-Las credenciales de MySQL deben permanecer únicamente en el backend.
+Reglas de claves:
+
+* La **SERVICE ROLE key** solo vive en `backend/.env` (es la única que ignora RLS).
+* La **publishable key** es pública y solo tiene las políticas RLS concedidas en la base.
+
+Nunca exponer la SERVICE ROLE key en el frontend.
 
 ---
 
@@ -603,17 +617,17 @@ Las credenciales de MySQL deben permanecer únicamente en el backend.
 
 La información de conexión debe almacenarse mediante variables de entorno.
 
-Ejemplo:
+Ejemplo (`backend/.env`):
 
 ```env
-DB_HOST=localhost
-DB_PORT=3306
-DB_NAME=juampyzel
-DB_USER=root
-DB_PASSWORD=
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_PUBLISHABLE_KEY=<anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
 ```
 
 Nunca escribir las credenciales directamente en los archivos `.js`.
+
+El esquema se aplica una sola vez desde el SQL Editor de Supabase ejecutando `supabase/schema.sql`.
 
 ---
 
@@ -766,17 +780,18 @@ Responsables de:
 
 Responsables de:
 
-* Acceso a MySQL.
-* Consultas.
+* Acceso a Supabase (PostgreSQL).
+* Consultas a tablas/vistas y llamadas RPC.
 * Persistencia.
 
-### MySQL
+### Supabase (PostgreSQL)
 
 Responsable de:
 
 * Almacenar información.
 * Relaciones.
 * Integridad de datos.
+* RLS y funciones RPC (transacciones y reportes).
 
 ---
 
@@ -914,13 +929,14 @@ Los permisos definitivos serán establecidos durante el análisis funcional.
 
 La arquitectura debe cumplir las siguientes reglas:
 
-* No conectar React directamente con MySQL.
-* No almacenar contraseñas en texto plano.
+* No conectar React directamente con la base de datos para escrituras.
+* No exponer la SERVICE ROLE key de Supabase en el frontend.
+* No almacenar contraseñas en texto plano (bcrypt).
 * No almacenar credenciales en Git.
 * Utilizar variables de entorno.
 * Validar información recibida.
 * Controlar permisos mediante middleware.
-* Utilizar consultas parametrizadas.
+* Utilizar los filtros de supabase-js (sin SQL crudo) o funciones RPC.
 * No confiar en la validación del frontend.
 * Validar nuevamente la información en el backend.
 
@@ -943,7 +959,7 @@ Antes de crear una nueva funcionalidad, el agente debe:
 
 No crear lógica de negocio directamente en componentes React.
 
-No crear consultas MySQL directamente dentro de Controllers.
+No crear consultas a la base de datos directamente dentro de Controllers.
 
 No colocar lógica de negocio dentro de Routes.
 
@@ -972,8 +988,8 @@ Backend
 └── Product.js
         │
         ▼
-MySQL
-└── products
+Supabase (PostgreSQL)
+└── tabla producto
 ```
 
 No modificar módulos no relacionados sin necesidad.
@@ -1007,6 +1023,7 @@ juampyzel/
 │   │
 │   ├── src/
 │   │   ├── config/
+│   │   │   └── supabase.js
 │   │   ├── routes/
 │   │   ├── controllers/
 │   │   ├── services/
@@ -1014,16 +1031,17 @@ juampyzel/
 │   │   ├── middlewares/
 │   │   ├── validators/
 │   │   ├── utils/
-│   │   ├── database/
+│   │   │   └── unwrap.js
 │   │   ├── app.js
 │   │   └── server.js
 │   │
 │   ├── .env
 │   └── package.json
 │
+├── supabase/
+│   └── schema.sql
+│
 ├── database/
-│   ├── schema.sql
-│   ├── seed.sql
 │   └── README.md
 │
 ├── docs/
@@ -1077,8 +1095,8 @@ Toda funcionalidad nueva de JuampyZel debe respetar el siguiente flujo:
              │
              ▼
 ┌─────────────────────────┐
-│         MySQL            │
-│       Database           │
+│   Supabase (PostgreSQL)  │
+│   Database + RPC + RLS   │
 └─────────────────────────┘
 ```
 

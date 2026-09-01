@@ -1,0 +1,149 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    html, body {
+        @apply bg-background text-text-primary font-body;
+    }
+}
+
+@layer components {
+    .glass-card {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+    }
+
+    .glass-input {
+        background: rgba(255, 255, 255, 0.6);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(237, 231, 227, 0.8);
+    }
+
+    .glass-input:focus {
+        background: rgba(255, 255, 255, 0.9);
+        border-color: rgba(255, 107, 154, 0.5);
+        box-shadow: 0 0 0 4px rgba(255, 107, 154, 0.1), 0 4px 20px rgba(255, 107, 154, 0.15);
+    }
+
+    .btn-gradient {
+        background: linear-gradient(135deg, #FF6B9A 0%, #7C5CFC 50%, #FF6B9A 100%);
+        background-size: 200% 200%;
+        animation: gradient-x 3s ease infinite;
+        transition: all 0.3s ease;
+    }
+
+    .btn-gradient:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 40px rgba(255, 107, 154, 0.4), 0 4px 15px rgba(124, 92, 252, 0.3);
+    }
+
+    .btn-gradient:active {
+        transform: translateY(0);
+    }
+
+    .floating-shape {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(40px);
+        opacity: 0.3;
+        animation: float 6s ease-in-out infinite;
+    }
+
+    .login-divider {
+        position: relative;
+        text-align: center;
+    }
+
+    .login-divider::before,
+    .login-divider::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        width: calc(50% - 20px);
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(237, 231, 227, 0.8), transparent);
+    }
+
+    .login-divider::before {
+        left: 0;
+    }
+
+    .login-divider::after {
+        right: 0;
+    }
+}
+
+@layer utilities {
+    .text-gradient {
+        background: linear-gradient(135deg, #FF6B9A 0%, #7C5CFC 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .text-gradient-animated {
+        background: linear-gradient(135deg, #FF6B9A, #7C5CFC, #FFD166, #FF6B9A);
+        background-size: 300% 300%;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        animation: gradient-x 3s ease infinite;
+    }
+
+    .shadow-glow-primary {
+        box-shadow: 0 0 30px rgba(255, 107, 154, 0.3), 0 0 60px rgba(255, 107, 154, 0.1);
+    }
+
+    .shadow-glow-secondary {
+        box-shadow: 0 0 30px rgba(124, 92, 252, 0.3), 0 0 60px rgba(124, 92, 252, 0.1);
+    }
+
+    .input-icon-left {
+        padding-left: 3rem;
+    }
+
+    .input-icon-right {
+        padding-right: 3rem;
+    }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #FFF9F5;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #FF6B9A, #7C5CFC);
+    border-radius: 3px;
+}
+
+/* Selection color */
+::selection {
+    background: rgba(255, 107, 154, 0.3);
+    color: #252235;
+}
+
+/* Hide scrollbar utility */
+.scrollbar-none::-webkit-scrollbar {
+    display: none;
+}
+.scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* Line clamp utility */
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}

@@ -4,49 +4,41 @@ Este documento define la arquitectura que deben seguir todos los desarrolladores
 
 ## Propósito
 
-JuampyZel es una empresa dedicada a la producción y comercialización de diferentes tipos de helados. El sistema permitirá centralizar y administrar las operaciones de la empresa.
+JuampyZel es una empresa dedicada a la producción y comercialización de helados. El sistema web centraliza y administra las operaciones de la empresa: sucursales, ventas, abastecimiento de tiendas, inventario, clientes, usuarios y roles, y reportes.
 
 ## Tecnologías
 
 ### Frontend
 - React
-- JavaScript
+- JavaScript (ES2022+)
 - HTML5
 - Tailwind CSS
+- Vite
+- @supabase/supabase-js (cliente para funcionalidades futuras)
 
 ### Backend
 - Node.js
 - Express.js
+- JavaScript (ES2022+)
+- @supabase/supabase-js (acceso a la base de datos)
 
 ### Base de datos
-- MySQL
+- Supabase (PostgreSQL)
 
 ## Patrón arquitectónico
 
-El proyecto utiliza una arquitectura **MVC (Model-View-Controller)**:
+MVC con capa adicional de Services:
 
 ```text
-Frontend
-    │ HTTP / API REST
-    ▼
-Backend
-    ├── Routes
-    ├── Controllers
-    ├── Models
-    └── Services
-            │
-            ▼
-        MySQL
+Routes → Controllers → Services → Models → Supabase (PostgreSQL)
 ```
 
 ## Arquitectura general
 
-El sistema se divide en dos aplicaciones:
-
 ```text
 JuampyZel
-├── frontend/    → React
-└── backend/     → Node.js + Express + MVC
+├── frontend/   → React (View + Interacción)
+└── backend/    → Node.js + Express + MVC + Supabase
 ```
 
 ## Estructura del proyecto
@@ -60,15 +52,22 @@ juampyzel/
 │   │   ├── layouts/
 │   │   ├── hooks/
 │   │   ├── services/
+│   │   ├── lib/
+│   │   │   └── supabase.js        → Cliente Supabase (publishable key)
 │   │   ├── context/
 │   │   ├── routes/
 │   │   ├── utils/
-│   │   └── assets/
-│   ├── public/
+│   │   ├── assets/
+│   │   ├── App.jsx
+│   │   └── main.jsx
+│   ├── .env
 │   └── package.json
+├── supabase/
+│   └── schema.sql                 → Esquema, vistas, RPC, RLS y seed
 ├── backend/
 │   ├── src/
 │   │   ├── config/
+│   │   │   └── supabase.js        → Cliente Supabase (service role key)
 │   │   ├── routes/
 │   │   ├── controllers/
 │   │   ├── services/
@@ -76,15 +75,12 @@ juampyzel/
 │   │   ├── middlewares/
 │   │   ├── validators/
 │   │   ├── utils/
-│   │   ├── database/
 │   │   ├── app.js
-│   │   └── server.js
+│   │   └── server.js              → Punto de entrada (verifica conexión a Supabase)
 │   ├── .env
 │   └── package.json
 ├── database/
-│   ├── schema.sql
-│   ├── seed.sql
-│   └── README.md
+│   └── README.md                  → Apunta a supabase/schema.sql
 ├── docs/
 │   ├── architecture.md
 │   ├── database.md
@@ -95,25 +91,26 @@ juampyzel/
 
 ## Separación de responsabilidades
 
-- **Frontend (React):** Interfaz, formularios, navegación, visualización, interacción del usuario, estado de la interfaz.
+- **Frontend (React):** Interfaz, formularios, navegación, visualización, interacción, estado de UI.
 - **Routes:** Definir endpoints de la API.
-- **Controllers:** Recibir solicitudes HTTP, coordinar operaciones y enviar respuestas.
-- **Services:** Reglas de negocio, procesos y validaciones de negocio.
-- **Models:** Acceso a MySQL, consultas y persistencia.
-- **MySQL:** Almacenar información, relaciones e integridad de datos.
+- **Controllers:** Recibir solicitudes, validar básicamente, llamar al Service, enviar respuestas.
+- **Services:** Lógica de negocio, validaciones de negocio.
+- **Models:** Acceso a Supabase (consultas a tablas/vistas y llamadas RPC).
+- **Middlewares:** Autenticación, autorización, manejo de errores.
+- **Supabase (PostgreSQL):** Almacenamiento, relaciones, integridad, RLS y funciones RPC atómicas.
 
-## Flujo de una solicitud
+## Acceso a la base de datos
 
-```text
-React → API REST → Controller → Service → Model → MySQL
-MySQL → Model → Service → Controller → HTTP Response → React
-```
+- El backend opera con la **SERVICE ROLE key** (ignora RLS). Está configurada en `backend/src/config/supabase.js` mediante `@supabase/supabase-js`.
+- Las **operaciones atómicas** (venta + detalle + stock, pedido + detalle + historial, movimientos de inventario, cambios de estado) se ejecutan como funciones `plpgsql` definidas en `supabase/schema.sql` e invocadas por los Services (`supabase.rpc(...)`). No se usan transacciones manuales desde Node.
+- Se usa la **publishable (anon) key** solo en el frontend (`frontend/src/lib/supabase.js`) y en el backend como *fallback*. Con RLS habilitado, no tiene permisos de escritura.
 
-## Reglas arquitectónicas
+## Seguridad
 
-- El frontend **nunca** debe conectarse directamente a MySQL.
-- Las credenciales de MySQL deben almacenarse en variables de entorno.
-- No almacenar contraseñas en texto plano (usar bcrypt).
-- Utilizar consultas parametrizadas.
-- Validar información en el backend, sin confiar en el frontend.
-- Controlar permisos mediante middleware.
+- El frontend no se conecta directamente a la base de datos para escrituras; consume la API REST del backend.
+- RLS está habilitado en todas las tablas. Sólo existen políticas `SELECT` públicas para el catálogo activo.
+- La SERVICE ROLE key permanece únicamente en `backend/.env`, nunca en el código o el frontend.
+- Las contraseñas se almacenan como hashes bcrypt (cost factor 10).
+- Las credenciales de Supabase y JWT secrets van en `.env`, nunca en el código.
+- La validación de datos se realiza nuevamente en el backend.
+- Los permisos se verifican mediante middleware (`authMiddleware`, `roleMiddleware`).
