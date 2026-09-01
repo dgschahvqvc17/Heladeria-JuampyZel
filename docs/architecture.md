@@ -14,21 +14,23 @@ JuampyZel es una empresa dedicada a la producción y comercialización de helado
 - HTML5
 - Tailwind CSS
 - Vite
+- @supabase/supabase-js (cliente para funcionalidades futuras)
 
 ### Backend
 - Node.js
 - Express.js
 - JavaScript (ES2022+)
+- @supabase/supabase-js (acceso a la base de datos)
 
 ### Base de datos
-- MySQL (InnoDB)
+- Supabase (PostgreSQL)
 
 ## Patrón arquitectónico
 
 MVC con capa adicional de Services:
 
 ```text
-Routes → Controllers → Services → Models → MySQL
+Routes → Controllers → Services → Models → Supabase (PostgreSQL)
 ```
 
 ## Arquitectura general
@@ -36,7 +38,7 @@ Routes → Controllers → Services → Models → MySQL
 ```text
 JuampyZel
 ├── frontend/   → React (View + Interacción)
-└── backend/    → Node.js + Express + MVC + MySQL
+└── backend/    → Node.js + Express + MVC + Supabase
 ```
 
 ## Estructura del proyecto
@@ -50,17 +52,22 @@ juampyzel/
 │   │   ├── layouts/
 │   │   ├── hooks/
 │   │   ├── services/
+│   │   ├── lib/
+│   │   │   └── supabase.js        → Cliente Supabase (publishable key)
 │   │   ├── context/
 │   │   ├── routes/
 │   │   ├── utils/
 │   │   ├── assets/
 │   │   ├── App.jsx
 │   │   └── main.jsx
-│   ├── public/
+│   ├── .env
 │   └── package.json
+├── supabase/
+│   └── schema.sql                 → Esquema, vistas, RPC, RLS y seed
 ├── backend/
 │   ├── src/
 │   │   ├── config/
+│   │   │   └── supabase.js        → Cliente Supabase (service role key)
 │   │   ├── routes/
 │   │   ├── controllers/
 │   │   ├── services/
@@ -68,15 +75,12 @@ juampyzel/
 │   │   ├── middlewares/
 │   │   ├── validators/
 │   │   ├── utils/
-│   │   ├── database/
 │   │   ├── app.js
-│   │   └── server.js
+│   │   └── server.js              → Punto de entrada (verifica conexión a Supabase)
 │   ├── .env
 │   └── package.json
 ├── database/
-│   ├── schema.sql
-│   ├── seed.sql
-│   └── README.md
+│   └── README.md                  → Apunta a supabase/schema.sql
 ├── docs/
 │   ├── architecture.md
 │   ├── database.md
@@ -91,15 +95,22 @@ juampyzel/
 - **Routes:** Definir endpoints de la API.
 - **Controllers:** Recibir solicitudes, validar básicamente, llamar al Service, enviar respuestas.
 - **Services:** Lógica de negocio, validaciones de negocio.
-- **Models:** Acceso a MySQL con consultas parametrizadas.
+- **Models:** Acceso a Supabase (consultas a tablas/vistas y llamadas RPC).
 - **Middlewares:** Autenticación, autorización, manejo de errores.
-- **MySQL:** Almacenamiento, relaciones, integridad.
+- **Supabase (PostgreSQL):** Almacenamiento, relaciones, integridad, RLS y funciones RPC atómicas.
+
+## Acceso a la base de datos
+
+- El backend opera con la **SERVICE ROLE key** (ignora RLS). Está configurada en `backend/src/config/supabase.js` mediante `@supabase/supabase-js`.
+- Las **operaciones atómicas** (venta + detalle + stock, pedido + detalle + historial, movimientos de inventario, cambios de estado) se ejecutan como funciones `plpgsql` definidas en `supabase/schema.sql` e invocadas por los Services (`supabase.rpc(...)`). No se usan transacciones manuales desde Node.
+- Se usa la **publishable (anon) key** solo en el frontend (`frontend/src/lib/supabase.js`) y en el backend como *fallback*. Con RLS habilitado, no tiene permisos de escritura.
 
 ## Seguridad
 
-- El frontend nunca se conecta directamente a MySQL.
+- El frontend no se conecta directamente a la base de datos para escrituras; consume la API REST del backend.
+- RLS está habilitado en todas las tablas. Sólo existen políticas `SELECT` públicas para el catálogo activo.
+- La SERVICE ROLE key permanece únicamente en `backend/.env`, nunca en el código o el frontend.
 - Las contraseñas se almacenan como hashes bcrypt (cost factor 10).
-- Las credenciales MySQL y JWT secrets van en `.env`, nunca en el código.
-- Todas las consultas SQL usan consultas parametrizadas (prevenir SQL injection).
+- Las credenciales de Supabase y JWT secrets van en `.env`, nunca en el código.
 - La validación de datos se realiza nuevamente en el backend.
 - Los permisos se verifican mediante middleware (`authMiddleware`, `roleMiddleware`).

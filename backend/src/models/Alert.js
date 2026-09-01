@@ -1,62 +1,54 @@
-const pool = require('../config/database');
+const supabase = require('../config/supabase');
+const { unwrap } = require('../utils/unwrap');
+
+const ALERT_SELECT = 'id_alerta, id_inventario, fecha_generacion, estado, producto, stock_minimo, stock_actual, sucursal';
+
+function mapAlert(row) {
+    return {
+        ...row,
+        stock_minimo: Number(row.stock_minimo),
+        stock_actual: Number(row.stock_actual)
+    };
+}
 
 class Alert {
     static async checkAndGenerateAlerts() {
-        // Genera alertas para productos activos cuyo stock sea menor o igual al mínimo
-        // y que NO tengan ya una alerta PENDIENTE.
-        const query = `
-            INSERT INTO alerta_stock (id_inventario)
-            SELECT i.id_inventario
-            FROM inventario i
-            INNER JOIN producto p ON p.id_producto = i.id_producto
-            WHERE i.stock_actual <= p.stock_minimo
-              AND p.estado = 1
-              AND NOT EXISTS (
-                  SELECT 1 FROM alerta_stock a
-                  WHERE a.id_inventario = i.id_inventario
-                    AND a.estado = 'PENDIENTE'
-              )
-        `;
-        const [result] = await pool.execute(query);
-        return result.affectedRows;
+        const { data, error } = await supabase.rpc('generar_alertas_stock');
+        if (error) throw error;
+        return Number(data);
     }
 
     static async findAll() {
-        const query = `
-            SELECT a.id_alerta, a.id_inventario, a.fecha_generacion, a.estado,
-                   p.nombre AS producto, p.stock_minimo, i.stock_actual,
-                   s.nombre AS sucursal
-            FROM alerta_stock a
-            INNER JOIN inventario i ON i.id_inventario = a.id_inventario
-            INNER JOIN producto p ON p.id_producto = i.id_producto
-            INNER JOIN sucursal s ON s.id_sucursal = i.id_sucursal
-            ORDER BY a.estado DESC, a.fecha_generacion DESC
-        `;
-        const [rows] = await pool.execute(query);
-        return rows;
+        const rows = unwrap(
+            await supabase
+                .from('vista_alertas')
+                .select(ALERT_SELECT)
+                .order('estado_orden', { ascending: true })
+                .order('fecha_generacion', { ascending: false })
+        );
+        return rows.map(mapAlert);
     }
 
     static async findById(id) {
-        const query = `
-            SELECT a.id_alerta, a.id_inventario, a.fecha_generacion, a.estado,
-                   p.nombre AS producto, p.stock_minimo, i.stock_actual,
-                   s.nombre AS sucursal
-            FROM alerta_stock a
-            INNER JOIN inventario i ON i.id_inventario = a.id_inventario
-            INNER JOIN producto p ON p.id_producto = i.id_producto
-            INNER JOIN sucursal s ON s.id_sucursal = i.id_sucursal
-            WHERE a.id_alerta = ?
-        `;
-        const [rows] = await pool.execute(query, [id]);
-        return rows[0];
+        const row = unwrap(
+            await supabase
+                .from('vista_alertas')
+                .select(ALERT_SELECT)
+                .eq('id_alerta', id)
+                .maybeSingle()
+        );
+        return row ? mapAlert(row) : null;
     }
 
     static async markAsAttended(id) {
-        const [result] = await pool.execute(
-            `UPDATE alerta_stock SET estado = 'ATENDIDA' WHERE id_alerta = ?`,
-            [id]
+        const data = unwrap(
+            await supabase
+                .from('alerta_stock')
+                .update({ estado: 'ATENDIDA' })
+                .eq('id_alerta', id)
+                .select('id_alerta')
         );
-        return result.affectedRows;
+        return data.length;
     }
 }
 

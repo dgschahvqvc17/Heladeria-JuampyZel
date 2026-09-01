@@ -1,4 +1,4 @@
-const pool = require('../config/database');
+const supabase = require('../config/supabase');
 const Sale = require('../models/Sale');
 const Branch = require('../models/Branch');
 const Customer = require('../models/Customer');
@@ -25,57 +25,33 @@ class SaleService {
     static async create({ id_cliente, id_sucursal, detalles }, userId) {
         this.validateStructure({ id_sucursal, detalles });
 
-        const connection = await pool.getConnection();
-        try {
-            await connection.beginTransaction();
+        const branch = await Branch.findById(id_sucursal);
+        if (!branch) throw new Error('La sucursal seleccionada no existe.');
+        if (!branch.estado) throw new Error('La sucursal seleccionada está inactiva.');
 
-            const branch = await Branch.findById(id_sucursal);
-            if (!branch) throw new Error('La sucursal seleccionada no existe.');
-            if (!branch.estado) throw new Error('La sucursal seleccionada está inactiva.');
-
-            if (id_cliente) {
-                const customer = await Customer.findById(id_cliente);
-                if (!customer) throw new Error('El cliente seleccionado no existe.');
-            }
-
-            const items = await this.validateDetalles(connection, id_sucursal, detalles);
-
-            const total = items.reduce(
-                (sum, item) => sum + Number(item.subtotal),
-                0
-            );
-
-            const saleId = await Sale.createVenta(connection, {
-                id_cliente,
-                id_usuario: userId,
-                id_sucursal,
-                total
-            });
-
-            for (const item of items) {
-                await Sale.createDetalle(connection, {
-                    id_venta: saleId,
-                    id_producto: item.id_producto,
-                    cantidad: item.cantidad,
-                    precio_unitario: item.precio_unitario,
-                    subtotal: item.subtotal
-                });
-
-                await Sale.decrementStock(connection, {
-                    id_producto: item.id_producto,
-                    id_sucursal,
-                    cantidad: item.cantidad
-                });
-            }
-
-            await connection.commit();
-            return this.getById(saleId);
-        } catch (error) {
-            await connection.rollback();
-            throw error;
-        } finally {
-            connection.release();
+        if (id_cliente) {
+            const customer = await Customer.findById(id_cliente);
+            if (!customer) throw new Error('El cliente seleccionado no existe.');
         }
+
+        const items = await this.validateDetalles(id_sucursal, detalles);
+        const total = items.reduce(
+            (sum, item) => sum + Number(item.subtotal),
+            0
+        );
+
+        // La transacción (venta + detalle + descuento de stock) se ejecuta
+        // de forma atomica en la base de datos mediante el RPC registrar_venta.
+        const { data, error } = await supabase.rpc('registrar_venta', {
+            p_id_cliente: id_cliente || null,
+            p_id_usuario: userId,
+            p_id_sucursal,
+            p_total: total,
+            p_detalles: items
+        });
+        if (error) throw error;
+
+        return this.getById(Number(data));
     }
 
     static validateStructure({ id_sucursal, detalles }) {
@@ -88,7 +64,7 @@ class SaleService {
         }
     }
 
-    static async validateDetalles(connection, idSucursal, detalles) {
+    static async validateDetalles(idSucursal, detalles) {
         const uniqueProductIds = new Set(detalles.map((d) => d.id_producto));
         if (uniqueProductIds.size !== detalles.length) {
             throw new Error('No puede agregar el mismo producto más de una vez a la venta.');
@@ -111,7 +87,13 @@ class SaleService {
                 throw new Error('La cantidad debe ser un número entero mayor a cero.');
             }
 
-            const product = await Sale.findActiveProduct(connection, id_producto);
+            const { data: product, error: productError } = await supabase
+                .from('producto')
+                .select('id_producto, nombre, precio, estado')
+                .eq('id_producto', id_producto)
+                .maybeSingle();
+            if (productError) throw productError;
+
             if (!product) {
                 throw new Error('Uno de los productos seleccionados no existe.');
             }
@@ -119,11 +101,15 @@ class SaleService {
                 throw new Error(`El producto "${product.nombre}" está inactivo y no puede venderse.`);
             }
 
-            const inventory = await Sale.findInventory(connection, {
-                id_producto,
-                id_sucursal: idSucursal
-            });
-            const stockActual = inventory ? inventory.stock_actual : 0;
+            const { data: inventory, error: inventoryError } = await supabase
+                .from('inventario')
+                .select('stock_actual')
+                .eq('id_producto', id_producto)
+                .eq('id_sucursal', idSucursal)
+                .maybeSingle();
+            if (inventoryError) throw inventoryError;
+
+            const stockActual = inventory ? Number(inventory.stock_actual) : 0;
             if (quantity > stockActual) {
                 throw new Error(`Stock insuficiente para "${product.nombre}". Disponible: ${stockActual}.`);
             }

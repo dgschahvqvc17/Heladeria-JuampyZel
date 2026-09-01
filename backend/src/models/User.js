@@ -1,79 +1,122 @@
-const pool = require('../config/database');
+const supabase = require('../config/supabase');
+const { unwrap } = require('../utils/unwrap');
 
 class User {
     static async findAll() {
-        const [rows] = await pool.execute(
-            'SELECT id_usuario, nombre, apellido, correo, rol, estado, fecha_registro FROM usuario ORDER BY fecha_registro DESC'
+        return unwrap(
+            await supabase
+                .from('usuario')
+                .select('id_usuario, nombre, apellido, correo, rol, estado, fecha_registro')
+                .order('fecha_registro', { ascending: false })
         );
-        return rows;
     }
 
     static async findById(id) {
-        const [rows] = await pool.execute(
-            'SELECT id_usuario, nombre, apellido, correo, rol, estado, fecha_registro FROM usuario WHERE id_usuario = ?',
-            [id]
+        return unwrap(
+            await supabase
+                .from('usuario')
+                .select('id_usuario, nombre, apellido, correo, rol, estado, fecha_registro')
+                .eq('id_usuario', id)
+                .maybeSingle()
         );
-        return rows[0];
     }
 
     static async findByEmail(correo) {
-        const [rows] = await pool.execute(
-            'SELECT id_usuario, nombre, apellido, correo, password, rol, estado, fecha_registro FROM usuario WHERE correo = ?',
-            [correo]
+        return unwrap(
+            await supabase
+                .from('usuario')
+                .select('id_usuario, nombre, apellido, correo, password, rol, estado, fecha_registro')
+                .ilike('correo', correo)
+                .maybeSingle()
         );
-        return rows[0];
     }
 
     static async findByIdWithPassword(id) {
-        const [rows] = await pool.execute(
-            'SELECT id_usuario, nombre, apellido, correo, password, rol, estado FROM usuario WHERE id_usuario = ?',
-            [id]
+        return unwrap(
+            await supabase
+                .from('usuario')
+                .select('id_usuario, nombre, apellido, correo, password, rol, estado')
+                .eq('id_usuario', id)
+                .maybeSingle()
         );
-        return rows[0];
     }
 
     static async create({ nombre, apellido, correo, password, rol }) {
-        const [result] = await pool.execute(
-            'INSERT INTO usuario (nombre, apellido, correo, password, rol) VALUES (?, ?, ?, ?, ?)',
-            [nombre, apellido, correo, password, rol]
+        const data = unwrap(
+            await supabase
+                .from('usuario')
+                .insert({ nombre, apellido, correo, password, rol })
+                .select('id_usuario')
+                .single()
         );
-        return result.insertId;
+        return data.id_usuario;
     }
 
     static async update(id, { nombre, apellido, correo, rol }) {
-        const [result] = await pool.execute(
-            'UPDATE usuario SET nombre = ?, apellido = ?, correo = ?, rol = ? WHERE id_usuario = ?',
-            [nombre, apellido, correo, rol, id]
+        const data = unwrap(
+            await supabase
+                .from('usuario')
+                .update({ nombre, apellido, correo, rol })
+                .eq('id_usuario', id)
+                .select('id_usuario')
         );
-        return result.affectedRows;
+        return data.length;
     }
 
     static async updatePassword(id, password) {
-        const [result] = await pool.execute(
-            'UPDATE usuario SET password = ? WHERE id_usuario = ?',
-            [password, id]
+        const data = unwrap(
+            await supabase
+                .from('usuario')
+                .update({ password })
+                .eq('id_usuario', id)
+                .select('id_usuario')
         );
-        return result.affectedRows;
+        return data.length;
     }
 
     static async updateStatus(id, estado) {
-        const [result] = await pool.execute(
-            'UPDATE usuario SET estado = ? WHERE id_usuario = ?',
-            [estado, id]
+        const data = unwrap(
+            await supabase
+                .from('usuario')
+                .update({ estado })
+                .eq('id_usuario', id)
+                .select('id_usuario')
         );
-        return result.affectedRows;
+        return data.length;
     }
 
     static async findManagersAvailableForBranch() {
-        const [rows] = await pool.execute(
-            `SELECT u.id_usuario, u.nombre, u.apellido, u.correo, u.estado,
-                    s.id_sucursal AS sucursal_asignada, s.nombre AS sucursal_nombre
-             FROM usuario u
-             LEFT JOIN sucursal s ON s.id_responsable = u.id_usuario
-             WHERE u.rol = 'ENCARGADO_SUCURSAL'
-             ORDER BY u.nombre, u.apellido`
+        const managers = unwrap(
+            await supabase
+                .from('usuario')
+                .select('id_usuario, nombre, apellido, correo, estado')
+                .eq('rol', 'ENCARGADO_SUCURSAL')
+                .order('nombre')
+                .order('apellido')
         );
-        return rows;
+
+        if (managers.length === 0) return managers;
+
+        const ids = managers.map((m) => m.id_usuario);
+        const branches = unwrap(
+            await supabase
+                .from('sucursal')
+                .select('id_sucursal, nombre, id_responsable')
+                .in('id_responsable', ids)
+        );
+
+        const branchByResponsable = new Map(
+            branches.map((b) => [b.id_responsable, b])
+        );
+
+        return managers.map((m) => {
+            const branch = branchByResponsable.get(m.id_usuario);
+            return {
+                ...m,
+                sucursal_asignada: branch ? branch.id_sucursal : null,
+                sucursal_nombre: branch ? branch.nombre : null
+            };
+        });
     }
 }
 

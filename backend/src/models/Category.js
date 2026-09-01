@@ -1,61 +1,81 @@
-const pool = require('../config/database');
+const supabase = require('../config/supabase');
+const { unwrap } = require('../utils/unwrap');
 
 class Category {
     static async findAll() {
-        const [rows] = await pool.execute(
-            `SELECT c.id_categoria, c.nombre, c.descripcion, c.estado,
-                    (SELECT COUNT(*) FROM producto p WHERE p.id_categoria = c.id_categoria) AS cantidad_productos
-             FROM categoria c
-             ORDER BY c.nombre`
+        const rows = unwrap(
+            await supabase
+                .from('categoria')
+                .select('id_categoria, nombre, descripcion, estado, producto(id_categoria)')
+                .order('nombre')
         );
-        return rows;
+        return rows.map(({ producto, ...categoria }) => ({
+            ...categoria,
+            cantidad_productos: Array.isArray(producto) ? producto.length : 0
+        }));
     }
 
     static async findActiveAll() {
-        const [rows] = await pool.execute(
-            'SELECT id_categoria, nombre FROM categoria WHERE estado = 1 ORDER BY nombre'
+        return unwrap(
+            await supabase
+                .from('categoria')
+                .select('id_categoria, nombre')
+                .eq('estado', true)
+                .order('nombre')
         );
-        return rows;
     }
 
     static async findById(id) {
-        const [rows] = await pool.execute(
-            'SELECT id_categoria, nombre, descripcion, estado FROM categoria WHERE id_categoria = ?',
-            [id]
+        return unwrap(
+            await supabase
+                .from('categoria')
+                .select('id_categoria, nombre, descripcion, estado')
+                .eq('id_categoria', id)
+                .maybeSingle()
         );
-        return rows[0];
     }
 
     static async findByName(nombre) {
-        const [rows] = await pool.execute(
-            'SELECT id_categoria, nombre FROM categoria WHERE nombre = ?',
-            [nombre]
+        return unwrap(
+            await supabase
+                .from('categoria')
+                .select('id_categoria, nombre')
+                .eq('nombre', nombre)
+                .maybeSingle()
         );
-        return rows[0];
     }
 
     static async create({ nombre, descripcion }) {
-        const [result] = await pool.execute(
-            'INSERT INTO categoria (nombre, descripcion) VALUES (?, ?)',
-            [nombre, descripcion || null]
+        const data = unwrap(
+            await supabase
+                .from('categoria')
+                .insert({ nombre, descripcion: descripcion || null })
+                .select('id_categoria')
+                .single()
         );
-        return result.insertId;
+        return data.id_categoria;
     }
 
     static async update(id, { nombre, descripcion }) {
-        const [result] = await pool.execute(
-            'UPDATE categoria SET nombre = ?, descripcion = ? WHERE id_categoria = ?',
-            [nombre, descripcion || null, id]
+        const data = unwrap(
+            await supabase
+                .from('categoria')
+                .update({ nombre, descripcion: descripcion || null })
+                .eq('id_categoria', id)
+                .select('id_categoria')
         );
-        return result.affectedRows;
+        return data.length;
     }
 
     static async updateStatus(id, estado) {
-        const [result] = await pool.execute(
-            'UPDATE categoria SET estado = ? WHERE id_categoria = ?',
-            [estado, id]
+        const data = unwrap(
+            await supabase
+                .from('categoria')
+                .update({ estado })
+                .eq('id_categoria', id)
+                .select('id_categoria')
         );
-        return result.affectedRows;
+        return data.length;
     }
 }
 

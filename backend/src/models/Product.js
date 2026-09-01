@@ -1,92 +1,116 @@
-const pool = require('../config/database');
+const supabase = require('../config/supabase');
+const { unwrap } = require('../utils/unwrap');
+
+function mapProduct(row) {
+    return {
+        ...row,
+        precio: Number(row.precio),
+        stock_minimo: Number(row.stock_minimo)
+    };
+}
 
 class Product {
     static async findAll() {
-        const [rows] = await pool.execute(
-            `SELECT p.id_producto, p.id_categoria, p.nombre, p.descripcion, p.precio,
-                    p.stock_minimo, p.imagen, p.estado,
-                    c.nombre AS categoria_nombre
-             FROM producto p
-             INNER JOIN categoria c ON c.id_categoria = p.id_categoria
-             ORDER BY p.nombre`
+        const rows = unwrap(
+            await supabase
+                .from('vista_productos')
+                .select('id_producto, id_categoria, nombre, descripcion, precio, stock_minimo, imagen, estado, categoria_nombre')
+                .order('nombre')
         );
-        return rows;
+        return rows.map(mapProduct);
     }
 
     static async findActiveAll() {
-        const [rows] = await pool.execute(
-            `SELECT p.id_producto, p.id_categoria, p.nombre, p.descripcion, p.precio,
-                    p.stock_minimo, p.imagen, c.nombre AS categoria_nombre
-             FROM producto p
-             INNER JOIN categoria c ON c.id_categoria = p.id_categoria
-             WHERE p.estado = 1 AND c.estado = 1
-             ORDER BY p.nombre`
+        const rows = unwrap(
+            await supabase
+                .from('vista_productos_activos')
+                .select('id_producto, id_categoria, nombre, descripcion, precio, stock_minimo, imagen, categoria_nombre')
+                .order('nombre')
         );
-        return rows;
+        return rows.map(mapProduct);
     }
 
     static async findById(id) {
-        const [rows] = await pool.execute(
-            `SELECT p.id_producto, p.id_categoria, p.nombre, p.descripcion, p.precio,
-                    p.stock_minimo, p.imagen, p.estado,
-                    c.nombre AS categoria_nombre
-             FROM producto p
-             INNER JOIN categoria c ON c.id_categoria = p.id_categoria
-             WHERE p.id_producto = ?`,
-            [id]
+        const row = unwrap(
+            await supabase
+                .from('vista_productos')
+                .select('id_producto, id_categoria, nombre, descripcion, precio, stock_minimo, imagen, estado, categoria_nombre')
+                .eq('id_producto', id)
+                .maybeSingle()
         );
-        return rows[0];
+        return row ? mapProduct(row) : null;
     }
 
     static async search(term) {
         const like = `%${term}%`;
-        const [rows] = await pool.execute(
-            `SELECT p.id_producto, p.id_categoria, p.nombre, p.descripcion, p.precio,
-                    p.stock_minimo, p.imagen, p.estado,
-                    c.nombre AS categoria_nombre
-             FROM producto p
-             INNER JOIN categoria c ON c.id_categoria = p.id_categoria
-             WHERE p.nombre LIKE ? OR p.descripcion LIKE ? OR c.nombre LIKE ?
-             ORDER BY p.nombre`,
-            [like, like, like]
+        const rows = unwrap(
+            await supabase
+                .from('vista_productos')
+                .select('id_producto, id_categoria, nombre, descripcion, precio, stock_minimo, imagen, estado, categoria_nombre')
+                .or(`nombre.ilike.${like},descripcion.ilike.${like},categoria_nombre.ilike.${like}`)
+                .order('nombre')
         );
-        return rows;
+        return rows.map(mapProduct);
     }
 
     static async create({ id_categoria, nombre, descripcion, precio, stock_minimo, imagen, estado }) {
-        const [result] = await pool.execute(
-            `INSERT INTO producto (id_categoria, nombre, descripcion, precio, stock_minimo, imagen, estado)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [id_categoria, nombre, descripcion || null, precio, stock_minimo, imagen || null, estado]
+        const data = unwrap(
+            await supabase
+                .from('producto')
+                .insert({
+                    id_categoria,
+                    nombre,
+                    descripcion: descripcion || null,
+                    precio,
+                    stock_minimo,
+                    imagen: imagen || null,
+                    estado
+                })
+                .select('id_producto')
+                .single()
         );
-        return result.insertId;
+        return data.id_producto;
     }
 
     static async update(id, { id_categoria, nombre, descripcion, precio, stock_minimo, imagen, estado }) {
-        const [result] = await pool.execute(
-            `UPDATE producto
-             SET id_categoria = ?, nombre = ?, descripcion = ?, precio = ?,
-                 stock_minimo = ?, imagen = ?, estado = ?
-             WHERE id_producto = ?`,
-            [id_categoria, nombre, descripcion || null, precio, stock_minimo, imagen || null, estado, id]
+        const data = unwrap(
+            await supabase
+                .from('producto')
+                .update({
+                    id_categoria,
+                    nombre,
+                    descripcion: descripcion || null,
+                    precio,
+                    stock_minimo,
+                    imagen: imagen || null,
+                    estado
+                })
+                .eq('id_producto', id)
+                .select('id_producto')
         );
-        return result.affectedRows;
+        return data.length;
     }
 
     static async updateStatus(id, estado) {
-        const [result] = await pool.execute(
-            'UPDATE producto SET estado = ? WHERE id_producto = ?',
-            [estado, id]
+        const data = unwrap(
+            await supabase
+                .from('producto')
+                .update({ estado })
+                .eq('id_producto', id)
+                .select('id_producto')
         );
-        return result.affectedRows;
+        return data.length;
     }
 
     static async updateStockMinimo(id, stock_minimo) {
-        const [result] = await pool.execute(
-            'UPDATE producto SET stock_minimo = ? WHERE id_producto = ?',
-            [stock_minimo, id]
+        const data = unwrap(
+            await supabase
+                .from('producto')
+                .update({ stock_minimo })
+                .eq('id_producto', id)
+                .select('id_producto')
         );
-        return result.affectedRows;
+        return data.length;
     }
 }
 

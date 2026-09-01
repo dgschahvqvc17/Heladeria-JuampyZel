@@ -1,131 +1,90 @@
-const pool = require('../config/database');
+const supabase = require('../config/supabase');
+const { unwrap } = require('../utils/unwrap');
+
+const SALE_SELECT = 'id_venta, id_cliente, id_usuario, id_sucursal, fecha_venta, total, usuario, sucursal, cliente';
+
+function mapSale(row) {
+    return { ...row, total: Number(row.total) };
+}
 
 class Sale {
     static async findAll() {
-        const [rows] = await pool.execute(
-            `SELECT v.id_venta, v.id_cliente, v.id_usuario, v.id_sucursal,
-                    v.fecha_venta, v.total,
-                    CONCAT(u.nombre, ' ', u.apellido) AS usuario,
-                    s.nombre AS sucursal,
-                    CONCAT(c.nombres, ' ', c.apellidos) AS cliente
-             FROM venta v
-             INNER JOIN usuario u ON u.id_usuario = v.id_usuario
-             INNER JOIN sucursal s ON s.id_sucursal = v.id_sucursal
-             LEFT JOIN cliente c ON c.id_cliente = v.id_cliente
-             ORDER BY v.fecha_venta DESC, v.id_venta DESC`
+        const rows = unwrap(
+            await supabase
+                .from('vista_ventas')
+                .select(SALE_SELECT)
+                .order('fecha_venta', { ascending: false })
+                .order('id_venta', { ascending: false })
         );
-        return rows;
+        return rows.map(mapSale);
     }
 
     static async findByBranch(branchId) {
-        const [rows] = await pool.execute(
-            `SELECT v.id_venta, v.id_cliente, v.id_usuario, v.id_sucursal,
-                    v.fecha_venta, v.total,
-                    CONCAT(u.nombre, ' ', u.apellido) AS usuario,
-                    s.nombre AS sucursal,
-                    CONCAT(c.nombres, ' ', c.apellidos) AS cliente
-             FROM venta v
-             INNER JOIN usuario u ON u.id_usuario = v.id_usuario
-             INNER JOIN sucursal s ON s.id_sucursal = v.id_sucursal
-             LEFT JOIN cliente c ON c.id_cliente = v.id_cliente
-             WHERE v.id_sucursal = ?
-             ORDER BY v.fecha_venta DESC, v.id_venta DESC`,
-            [branchId]
+        const rows = unwrap(
+            await supabase
+                .from('vista_ventas')
+                .select(SALE_SELECT)
+                .eq('id_sucursal', branchId)
+                .order('fecha_venta', { ascending: false })
+                .order('id_venta', { ascending: false })
         );
-        return rows;
+        return rows.map(mapSale);
     }
 
     static async findById(id) {
-        const [saleRows] = await pool.execute(
-            `SELECT v.id_venta, v.id_cliente, v.id_usuario, v.id_sucursal,
-                    v.fecha_venta, v.total,
-                    CONCAT(u.nombre, ' ', u.apellido) AS usuario,
-                    s.nombre AS sucursal,
-                    CONCAT(c.nombres, ' ', c.apellidos) AS cliente
-             FROM venta v
-             INNER JOIN usuario u ON u.id_usuario = v.id_usuario
-             INNER JOIN sucursal s ON s.id_sucursal = v.id_sucursal
-             LEFT JOIN cliente c ON c.id_cliente = v.id_cliente
-             WHERE v.id_venta = ?`,
-            [id]
+        const sale = unwrap(
+            await supabase
+                .from('vista_ventas')
+                .select(SALE_SELECT)
+                .eq('id_venta', id)
+                .maybeSingle()
         );
-        const sale = saleRows[0];
         if (!sale) return null;
 
-        const [details] = await pool.execute(
-            `SELECT dv.id_detalle_venta, dv.id_venta, dv.id_producto, dv.cantidad,
-                    dv.precio_unitario, dv.subtotal, p.nombre AS producto
-             FROM detalle_venta dv
-             INNER JOIN producto p ON p.id_producto = dv.id_producto
-             WHERE dv.id_venta = ?
-             ORDER BY dv.id_detalle_venta`,
-            [id]
+        const details = unwrap(
+            await supabase
+                .from('detalle_venta')
+                .select('id_detalle_venta, id_venta, id_producto, cantidad, precio_unitario, subtotal, producto(nombre)')
+                .eq('id_venta', id)
+                .order('id_detalle_venta')
         );
-        sale.detalles = details;
 
-        return sale;
+        sale.detalles = details.map(({ producto, ...detalle }) => ({
+            ...detalle,
+            producto: producto ? producto.nombre : null,
+            cantidad: Number(detalle.cantidad),
+            precio_unitario: Number(detalle.precio_unitario),
+            subtotal: Number(detalle.subtotal)
+        }));
+
+        return mapSale(sale);
     }
 
     static async findActiveByBranch(branchId) {
-        const [rows] = await pool.execute(
-            `SELECT p.id_producto, p.id_categoria, p.nombre, p.descripcion, p.precio,
-                    p.stock_minimo, p.imagen, c.nombre AS categoria_nombre,
-                    COALESCE(i.stock_actual, 0) AS stock_actual
-             FROM producto p
-             INNER JOIN categoria c ON c.id_categoria = p.id_categoria
-             LEFT JOIN inventario i
-                    ON i.id_producto = p.id_producto AND i.id_sucursal = ?
-             WHERE p.estado = 1 AND c.estado = 1
-             ORDER BY p.nombre`,
-            [branchId]
+        const products = unwrap(
+            await supabase
+                .from('vista_productos_activos')
+                .select('id_producto, id_categoria, nombre, descripcion, precio, stock_minimo, imagen, categoria_nombre')
+                .order('nombre')
         );
-        return rows;
-    }
 
-    static async findActiveProduct(connection, id) {
-        const [rows] = await connection.execute(
-            'SELECT id_producto, nombre, precio, estado FROM producto WHERE id_producto = ?',
-            [id]
+        const stocks = unwrap(
+            await supabase
+                .from('inventario')
+                .select('id_producto, stock_actual')
+                .eq('id_sucursal', branchId)
         );
-        return rows[0];
-    }
 
-    static async findInventory(connection, { id_producto, id_sucursal }) {
-        const [rows] = await connection.execute(
-            `SELECT id_inventario, id_producto, id_sucursal, stock_actual
-             FROM inventario
-             WHERE id_producto = ? AND id_sucursal = ?
-             FOR UPDATE`,
-            [id_producto, id_sucursal]
+        const stockByProduct = new Map(
+            stocks.map((s) => [s.id_producto, Number(s.stock_actual)])
         );
-        return rows[0];
-    }
 
-    static async createVenta(connection, { id_cliente, id_usuario, id_sucursal, total }) {
-        const [result] = await connection.execute(
-            'INSERT INTO venta (id_cliente, id_usuario, id_sucursal, total) VALUES (?, ?, ?, ?)',
-            [id_cliente || null, id_usuario, id_sucursal, total]
-        );
-        return result.insertId;
-    }
-
-    static async createDetalle(connection, { id_venta, id_producto, cantidad, precio_unitario, subtotal }) {
-        const [result] = await connection.execute(
-            `INSERT INTO detalle_venta (id_venta, id_producto, cantidad, precio_unitario, subtotal)
-             VALUES (?, ?, ?, ?, ?)`,
-            [id_venta, id_producto, cantidad, precio_unitario, subtotal]
-        );
-        return result.insertId;
-    }
-
-    static async decrementStock(connection, { id_producto, id_sucursal, cantidad }) {
-        const [result] = await connection.execute(
-            `UPDATE inventario
-             SET stock_actual = stock_actual - ?
-             WHERE id_producto = ? AND id_sucursal = ?`,
-            [cantidad, id_producto, id_sucursal]
-        );
-        return result.affectedRows;
+        return products.map((p) => ({
+            ...p,
+            precio: Number(p.precio),
+            stock_minimo: Number(p.stock_minimo),
+            stock_actual: stockByProduct.get(p.id_producto) || 0
+        }));
     }
 }
 

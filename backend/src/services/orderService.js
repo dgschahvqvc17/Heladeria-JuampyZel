@@ -1,4 +1,4 @@
-const pool = require('../config/database');
+const supabase = require('../config/supabase');
 const Order = require('../models/Order');
 const Store = require('../models/Store');
 
@@ -34,45 +34,20 @@ class OrderService {
         const store = await this.getStoreForUser(userId);
         this.validateStructure(detalles);
 
-        const connection = await pool.getConnection();
-        try {
-            await connection.beginTransaction();
+        const items = await this.validateDetalles(detalles);
+        const total = items.reduce((sum, item) => sum + Number(item.subtotal), 0);
 
-            const items = await this.validateDetalles(connection, detalles);
-            const total = items.reduce((sum, item) => sum + Number(item.subtotal), 0);
+        // La transacción (pedido + detalle + historial PENDIENTE) se ejecuta
+        // de forma atomica en la base de datos mediante el RPC registrar_pedido.
+        const { data, error } = await supabase.rpc('registrar_pedido', {
+            p_id_tienda: store.id_tienda,
+            p_id_usuario: userId,
+            p_total: total,
+            p_detalles: items
+        });
+        if (error) throw error;
 
-            const orderId = await Order.createPedido(connection, {
-                id_tienda: store.id_tienda,
-                id_usuario: userId,
-                total
-            });
-
-            for (const item of items) {
-                await Order.createDetalle(connection, {
-                    id_pedido: orderId,
-                    id_producto: item.id_producto,
-                    cantidad: item.cantidad,
-                    precio_unitario: item.precio_unitario,
-                    subtotal: item.subtotal
-                });
-            }
-
-            // Grabar el estado inicial PENDIENTE en el historial
-            await Order.updateStatusWithHistory(connection, {
-                id_pedido: orderId,
-                id_usuario: userId,
-                estado_anterior: 'NUEVO',
-                estado_nuevo: 'PENDIENTE'
-            });
-
-            await connection.commit();
-            return this.getById(orderId, { rol: 'TIENDA', id_usuario: userId });
-        } catch (error) {
-            await connection.rollback();
-            throw error;
-        } finally {
-            connection.release();
-        }
+        return this.getById(Number(data), { rol: 'TIENDA', id_usuario: userId });
     }
 
     static async updateStatus(id, estado_nuevo, requester) {
@@ -91,25 +66,16 @@ class OrderService {
             throw new Error('El pedido ya se encuentra en este estado.');
         }
 
-        const connection = await pool.getConnection();
-        try {
-            await connection.beginTransaction();
-            
-            await Order.updateStatusWithHistory(connection, {
-                id_pedido: id,
-                id_usuario: requester.id_usuario,
-                estado_anterior: existing.estado,
-                estado_nuevo: estado_nuevo
-            });
+        // Actualiza el estado y registra el historial de forma atomica.
+        const { error } = await supabase.rpc('actualizar_estado_pedido', {
+            p_id_pedido: id,
+            p_id_usuario: requester.id_usuario,
+            p_estado_anterior: existing.estado,
+            p_estado_nuevo: estado_nuevo
+        });
+        if (error) throw error;
 
-            await connection.commit();
-            return this.getById(id, requester);
-        } catch (error) {
-            await connection.rollback();
-            throw error;
-        } finally {
-            connection.release();
-        }
+        return this.getById(id, requester);
     }
 
     static async getStoreForUser(userId) {
@@ -125,7 +91,7 @@ class OrderService {
         }
     }
 
-    static async validateDetalles(connection, detalles) {
+    static async validateDetalles(detalles) {
         const uniqueProductIds = new Set(detalles.map((d) => d.id_producto));
         if (uniqueProductIds.size !== detalles.length) {
             throw new Error('No puede agregar el mismo producto más de una vez al pedido.');
@@ -136,15 +102,30 @@ class OrderService {
             const { id_producto, cantidad } = detalle;
             if (!id_producto) throw new Error('Debe seleccionar el producto de cada detalle.');
             if (cantidad === undefined || cantidad === null || cantidad === '') throw new Error('Debe indicar la cantidad de cada producto.');
-            
+
             const quantity = Number(cantidad);
             if (!Number.isInteger(quantity) || quantity <= 0) throw new Error('La cantidad debe ser un número entero mayor a cero.');
 
-            const product = await Order.findActiveProduct(connection, id_producto);
+            const { data: product, error: productError } = await supabase
+                .from('producto')
+                .select('id_producto, nombre, precio, estado')
+                .eq('id_producto', id_producto)
+                .maybeSingle();
+            if (productError) throw productError;
+
             if (!product) throw new Error('Uno de los productos seleccionados no existe.');
             if (!product.estado) throw new Error(`El producto "${product.nombre}" está inactivo y no puede solicitarse.`);
 
-            const stockDisponible = await Order.findInventorySum(connection, id_producto);
+            const { data: stocks, error: stocksError } = await supabase
+                .from('inventario')
+                .select('stock_actual')
+                .eq('id_producto', id_producto);
+            if (stocksError) throw stocksError;
+
+            const stockDisponible = stocks.reduce(
+                (sum, s) => sum + Number(s.stock_actual),
+                0
+            );
             if (quantity > stockDisponible) throw new Error(`Disponibilidad insuficiente para "${product.nombre}". Disponible: ${stockDisponible}.`);
 
             const precioUnitario = Number(product.precio);

@@ -1,59 +1,79 @@
-const pool = require('../config/database');
+const supabase = require('../config/supabase');
+const { unwrap } = require('../utils/unwrap');
 
 class Customer {
     static async findAll() {
-        const [rows] = await pool.execute(
-            `SELECT id_cliente, nombres, apellidos, telefono, correo, direccion, fecha_registro
-             FROM cliente
-             ORDER BY id_cliente DESC`
+        return unwrap(
+            await supabase
+                .from('cliente')
+                .select('id_cliente, nombres, apellidos, telefono, correo, direccion, fecha_registro')
+                .order('id_cliente', { ascending: false })
         );
-        return rows;
     }
 
     static async findById(id) {
-        const [rows] = await pool.execute(
-            `SELECT id_cliente, nombres, apellidos, telefono, correo, direccion, fecha_registro
-             FROM cliente
-             WHERE id_cliente = ?`,
-            [id]
+        return unwrap(
+            await supabase
+                .from('cliente')
+                .select('id_cliente, nombres, apellidos, telefono, correo, direccion, fecha_registro')
+                .eq('id_cliente', id)
+                .maybeSingle()
         );
-        return rows[0];
     }
 
     static async findByEmail(correo) {
-        const [rows] = await pool.execute(
-            'SELECT id_cliente, correo FROM cliente WHERE correo = ?',
-            [correo]
+        return unwrap(
+            await supabase
+                .from('cliente')
+                .select('id_cliente, correo')
+                .eq('correo', correo)
+                .maybeSingle()
         );
-        return rows[0];
     }
 
     static async search(term) {
         const like = `%${term}%`;
-        const [rows] = await pool.execute(
-            `SELECT id_cliente, nombres, apellidos, telefono, correo, direccion, fecha_registro
-             FROM cliente
-             WHERE nombres LIKE ? OR apellidos LIKE ? OR correo LIKE ? OR telefono LIKE ?
-             ORDER BY id_cliente DESC`,
-            [like, like, like, like]
+        return unwrap(
+            await supabase
+                .from('cliente')
+                .select('id_cliente, nombres, apellidos, telefono, correo, direccion, fecha_registro')
+                .or(`nombres.ilike.${like},apellidos.ilike.${like},correo.ilike.${like},telefono.ilike.${like}`)
+                .order('id_cliente', { ascending: false })
         );
-        return rows;
     }
 
     static async create({ nombres, apellidos, telefono, correo, direccion }) {
-        const [result] = await pool.execute(
-            'INSERT INTO cliente (nombres, apellidos, telefono, correo, direccion) VALUES (?, ?, ?, ?, ?)',
-            [nombres, apellidos, telefono || null, correo ? correo.toLowerCase() : null, direccion || null]
+        const data = unwrap(
+            await supabase
+                .from('cliente')
+                .insert({
+                    nombres,
+                    apellidos,
+                    telefono: telefono || null,
+                    correo: correo ? correo.toLowerCase() : null,
+                    direccion: direccion || null
+                })
+                .select('id_cliente')
+                .single()
         );
-        return result.insertId;
+        return data.id_cliente;
     }
 
     static async update(id, { nombres, apellidos, telefono, correo, direccion }) {
-        const [result] = await pool.execute(
-            'UPDATE cliente SET nombres = ?, apellidos = ?, telefono = ?, correo = ?, direccion = ? WHERE id_cliente = ?',
-            [nombres, apellidos, telefono || null, correo ? correo.toLowerCase() : null, direccion || null, id]
+        const data = unwrap(
+            await supabase
+                .from('cliente')
+                .update({
+                    nombres,
+                    apellidos,
+                    telefono: telefono || null,
+                    correo: correo ? correo.toLowerCase() : null,
+                    direccion: direccion || null
+                })
+                .eq('id_cliente', id)
+                .select('id_cliente')
         );
-        return result.affectedRows;
+        return data.length;
     }
 }
 

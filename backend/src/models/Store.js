@@ -1,59 +1,90 @@
-const pool = require('../config/database');
+const supabase = require('../config/supabase');
+const { unwrap } = require('../utils/unwrap');
 
 class Store {
     static async findAll() {
-        const [rows] = await pool.execute(
-            'SELECT id_tienda, id_usuario, nombre, responsable, telefono, correo, direccion, estado, fecha_registro FROM tienda ORDER BY id_tienda DESC'
+        return unwrap(
+            await supabase
+                .from('tienda')
+                .select('id_tienda, id_usuario, nombre, responsable, telefono, correo, direccion, estado, fecha_registro')
+                .order('id_tienda', { ascending: false })
         );
-        return rows;
     }
 
     static async findById(id) {
-        const [rows] = await pool.execute(
-            'SELECT id_tienda, id_usuario, nombre, responsable, telefono, correo, direccion, estado, fecha_registro FROM tienda WHERE id_tienda = ?',
-            [id]
+        return unwrap(
+            await supabase
+                .from('tienda')
+                .select('id_tienda, id_usuario, nombre, responsable, telefono, correo, direccion, estado, fecha_registro')
+                .eq('id_tienda', id)
+                .maybeSingle()
         );
-        return rows[0];
     }
 
     static async findByUserId(userId) {
-        const [rows] = await pool.execute(
-            'SELECT id_tienda, id_usuario, nombre, responsable, telefono, correo, direccion, estado, fecha_registro FROM tienda WHERE id_usuario = ?',
-            [userId]
+        return unwrap(
+            await supabase
+                .from('tienda')
+                .select('id_tienda, id_usuario, nombre, responsable, telefono, correo, direccion, estado, fecha_registro')
+                .eq('id_usuario', userId)
+                .maybeSingle()
         );
-        return rows[0];
     }
 
     static async findByName(nombre) {
-        const [rows] = await pool.execute(
-            'SELECT id_tienda, nombre FROM tienda WHERE nombre = ?',
-            [nombre]
+        return unwrap(
+            await supabase
+                .from('tienda')
+                .select('id_tienda, nombre')
+                .eq('nombre', nombre)
+                .maybeSingle()
         );
-        return rows[0];
     }
 
     static async create({ id_usuario, nombre, responsable, telefono, correo, direccion }) {
-        const [result] = await pool.execute(
-            'INSERT INTO tienda (id_usuario, nombre, responsable, telefono, correo, direccion) VALUES (?, ?, ?, ?, ?, ?)',
-            [id_usuario, nombre, responsable, telefono || null, correo || null, direccion]
+        const data = unwrap(
+            await supabase
+                .from('tienda')
+                .insert({
+                    id_usuario,
+                    nombre,
+                    responsable,
+                    telefono: telefono || null,
+                    correo: correo || null,
+                    direccion
+                })
+                .select('id_tienda')
+                .single()
         );
-        return result.insertId;
+        return data.id_tienda;
     }
 
     static async update(id, { nombre, responsable, telefono, correo, direccion }) {
-        const [result] = await pool.execute(
-            'UPDATE tienda SET nombre = ?, responsable = ?, telefono = ?, correo = ?, direccion = ? WHERE id_tienda = ?',
-            [nombre, responsable, telefono || null, correo || null, direccion, id]
+        const data = unwrap(
+            await supabase
+                .from('tienda')
+                .update({
+                    nombre,
+                    responsable,
+                    telefono: telefono || null,
+                    correo: correo || null,
+                    direccion
+                })
+                .eq('id_tienda', id)
+                .select('id_tienda')
         );
-        return result.affectedRows;
+        return data.length;
     }
 
     static async updateStatus(id, estado) {
-        const [result] = await pool.execute(
-            'UPDATE tienda SET estado = ? WHERE id_tienda = ?',
-            [estado, id]
+        const data = unwrap(
+            await supabase
+                .from('tienda')
+                .update({ estado })
+                .eq('id_tienda', id)
+                .select('id_tienda')
         );
-        return result.affectedRows;
+        return data.length;
     }
 }
 

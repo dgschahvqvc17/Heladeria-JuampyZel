@@ -2,7 +2,7 @@
 
 ## 1. Objetivo
 
-El backend de JuampyZel será responsable de proporcionar la API REST que permitirá al frontend React comunicarse con la lógica de negocio y la base de datos MySQL.
+El backend de JuampyZel será responsable de proporcionar la API REST que permitirá al frontend React comunicarse con la lógica de negocio y la base de datos Supabase (PostgreSQL).
 
 El backend debe ser:
 
@@ -23,7 +23,8 @@ El backend utilizará:
 * Node.js
 * Express.js
 * JavaScript
-* MySQL
+* Supabase (PostgreSQL)
+* @supabase/supabase-js (cliente para el acceso a los datos)
 
 No agregar frameworks backend adicionales sin justificación.
 
@@ -42,7 +43,7 @@ Services
    ↓
 Models
    ↓
-MySQL
+Supabase (PostgreSQL)
 ```
 
 Cada capa tiene responsabilidades específicas.
@@ -119,7 +120,7 @@ Esto permite implementar operaciones complejas manteniendo los Controllers limpi
 
 # 7. Models
 
-Los Models serán responsables de interactuar con MySQL.
+Los Models serán responsables de interactuar con Supabase (PostgreSQL) mediante `@supabase/supabase-js`.
 
 Ejemplo:
 
@@ -130,41 +131,49 @@ OrderDetail.js
 Inventory.js
 ```
 
-Las consultas SQL deben mantenerse en esta capa.
+En esta capa se mantienen:
 
-Nunca colocar SQL directamente en React.
+* Las consultas a tablas y vistas (`supabase.from(...)`).
+* Las llamadas a funciones RPC (`supabase.rpc(...)`).
 
-Nunca colocar SQL directamente en Routes.
+Nunca colocar consultas de base de datos directamente en React.
+
+Nunca colocar consultas de base de datos directamente en Routes.
 
 ---
 
 # 8. Base de datos
 
-MySQL será la fuente principal de persistencia.
+Supabase (PostgreSQL) será la fuente principal de persistencia.
 
-El backend debe utilizar una conexión segura y reutilizable.
+El backend debe utilizar un único cliente de Supabase reutilizable (configurado en `src/config/supabase.js`), nunca crear clientes por operación.
 
-No crear una nueva conexión manualmente para cada operación si puede utilizarse un pool de conexiones.
+No escribir transacciones manuales: las operaciones atómicas (ventas + stock, pedidos + historial, movimientos, ajustes) se ejecutan como funciones RPC (`plpgsql`) definidas en `supabase/schema.sql` e invocadas con `supabase.rpc(...)`.
 
 ---
 
 # 9. Variables de entorno
 
-Utilizar `.env`.
+Utilizar `.env` (ver `backend/.env.example`).
 
 Ejemplo:
 
 ```env
-PORT=3000
+PORT=5000
 
-DB_HOST=localhost
-DB_PORT=3306
-DB_NAME=juampyzel
-DB_USER=root
-DB_PASSWORD=
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_PUBLISHABLE_KEY=<anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
 
 JWT_SECRET=change_this_secret
+JWT_EXPIRES_IN=24h
 ```
+
+Reglas de claves:
+
+* La clave **SERVICE ROLE** se usa únicamente en el backend (ignora RLS). Nunca exponerla en el frontend.
+* La clave **publishable (anon)** es pública y solo puede usarse en el frontend si existen políticas RLS de lectura.
+* Si `SUPABASE_SERVICE_ROLE_KEY` falta, el backend degrada a la publishable key y muestra una advertencia.
 
 Nunca subir `.env` a GitHub.
 
@@ -318,38 +327,39 @@ Actualizar inventario
 Confirmar operación
 ```
 
-Cuando varias operaciones dependan entre sí, considerar el uso de transacciones MySQL.
+Cuando varias operaciones dependan entre sí, ejecutarlas como funciones RPC (`plpgsql`) que internamente usan transacciones de PostgreSQL (ver `supabase/schema.sql`).
 
 ---
 
 # 16. Transacciones
 
-Las operaciones críticas deben utilizar transacciones.
+Las operaciones críticas deben ejecutarse de forma atómica.
+
+El backend **no maneja transacciones manuales**; las funciones RPC (`plpgsql`, `SECURITY DEFINER`) definidas en `supabase/schema.sql` envuelven la lógica en una transacción de PostgreSQL.
 
 Especialmente:
 
-* Pedidos.
-* Ventas.
-* Movimientos de inventario.
-* Operaciones que actualicen varias tablas.
+* Pedidos (`registrar_pedido`, `actualizar_estado_pedido`).
+* Ventas (`registrar_venta`).
+* Movimientos de inventario (`registrar_movimiento_inventario`, `ajustar_stock_total`).
+* Reportes agregados (`reporte_*`).
 
 Ejemplo conceptual:
 
 ```text
-BEGIN TRANSACTION
+CREATE FUNCTION registrar_pedido(...) RETURNS BIGINT AS $$
+BEGIN
+    INSERT INTO pedido ...;
+    INSERT INTO historial_pedido ...;
+    RETURN id;
+END;
+$$
 
-Registrar pedido
-Registrar detalle
-Actualizar inventario
-
-Si todo funciona:
-    COMMIT
-
-Si ocurre un error:
-    ROLLBACK
+Service:
+    supabase.rpc('registrar_pedido', { ... })
 ```
 
-Nunca dejar una operación parcialmente registrada.
+Si ocurre un error, PostgreSQL revierte todo automáticamente. Nunca dejar una operación parcialmente registrada.
 
 ---
 
@@ -494,28 +504,29 @@ No repetir innecesariamente lógica de manejo de errores.
 
 ---
 
-# 23. Seguridad SQL
+# 23. Seguridad de consultas
 
-Nunca construir consultas SQL concatenando directamente datos del usuario.
+Nunca construir consultas SQL crudas concatenando datos del usuario.
+
+Utilizar el cliente `@supabase/supabase-js` con sus filtros tipados (`eq`, `in`, `ilike`, `or`, etc.), que escapan y parametrizan los valores.
 
 Incorrecto:
 
 ```javascript
-const sql = `SELECT * FROM products WHERE id = ${id}`;
+const { data } = await supabase.from('product').select().filter(`id = ${id}; DROP ...`);
 ```
 
-Utilizar consultas parametrizadas.
-
-Ejemplo:
+Correcto:
 
 ```javascript
-const [rows] = await connection.execute(
-    "SELECT * FROM products WHERE id = ?",
-    [id]
-);
+const { data, error } = await supabase
+    .from('product')
+    .select('id_producto, nombre')
+    .eq('id_producto', id)
+    .maybeSingle();
 ```
 
-Esto ayuda a prevenir SQL Injection.
+Si se necesita SQL plano (agregaciones complejas o transacciones), definirlo como vista o función RPC en `supabase/schema.sql` y consumirlo por nombre. Esto previene SQL Injection y mantiene la lógica de datos en la base de datos.
 
 ---
 
@@ -527,7 +538,8 @@ Nunca almacenar:
 Contraseñas
 API Keys
 JWT Secrets
-Credenciales MySQL
+Credenciales de Supabase (URL y claves)
+SERVICE ROLE Key
 Tokens
 ```
 
@@ -565,7 +577,7 @@ El backend debe organizarse por responsabilidades.
 src/
 │
 ├── config/
-│   └── database.js
+│   └── supabase.js    → Cliente único de Supabase (usa SERVICE ROLE key)
 │
 ├── routes/
 │   ├── authRoutes.js
@@ -599,10 +611,13 @@ src/
 ├── validators/
 │
 ├── utils/
+│   └── unwrap.js     → Helper para respuestas de Supabase ({ data, error })
 │
 ├── app.js
 └── server.js
 ```
+
+El esquema de la base de datos (tablas, vistas, funciones RPC y RLS) vive en `supabase/schema.sql` en la raíz del proyecto.
 
 ---
 
@@ -610,8 +625,8 @@ src/
 
 El frontend nunca debe conocer:
 
-* Credenciales MySQL.
-* Consultas SQL.
+* La clave **SERVICE ROLE** de Supabase.
+* Consultas SQL ni nombres internos de tablas (las consume el backend).
 * Estructura interna de Models.
 * Reglas internas de Services.
 
@@ -626,7 +641,7 @@ API
   ↓
 Backend
   ↓
-MySQL
+Supabase (PostgreSQL)
 ```
 
 ---
@@ -665,7 +680,7 @@ Business Service
     ↓
 Model
     ↓
-MySQL
+Supabase (PostgreSQL)
 ```
 
 No saltarse capas sin una razón técnica válida.

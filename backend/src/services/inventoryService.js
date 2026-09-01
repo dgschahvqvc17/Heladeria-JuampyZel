@@ -1,4 +1,4 @@
-const pool = require('../config/database');
+const supabase = require('../config/supabase');
 const Inventory = require('../models/Inventory');
 const Branch = require('../models/Branch');
 const Product = require('../models/Product');
@@ -32,136 +32,100 @@ class InventoryService {
         const cantidad = Number(data.cantidad);
         const motivo = data.motivo ? String(data.motivo).trim() : null;
 
-        const connection = await pool.getConnection();
-        try {
-            await connection.beginTransaction();
+        const product = await Product.findById(id_producto);
+        if (!product) throw new Error('El producto seleccionado no existe.');
 
-            const product = await Inventory.findProduct(connection, id_producto);
-            if (!product) throw new Error('El producto seleccionado no existe.');
+        const branch = await Branch.findById(id_sucursal);
+        if (!branch) throw new Error('La sucursal seleccionada no existe.');
+        if (!branch.estado) throw new Error('La sucursal seleccionada está inactiva.');
 
-            const branch = await Branch.findById(id_sucursal);
-            if (!branch) throw new Error('La sucursal seleccionada no existe.');
-            if (!branch.estado) throw new Error('La sucursal seleccionada está inactiva.');
+        // Actualiza stock y registra el movimiento de forma atomica.
+        const { data: movementId, error } = await supabase.rpc('registrar_movimiento_inventario', {
+            p_id_producto: id_producto,
+            p_id_sucursal,
+            p_id_usuario: userId,
+            p_tipo: tipo,
+            p_cantidad: cantidad,
+            p_motivo: motivo
+        });
+        if (error) throw error;
 
-            const inventory = await Inventory.findInventoryForUpdate(connection, {
-                id_producto,
-                id_sucursal
-            });
-
-            const stockAnterior = inventory ? inventory.stock_actual : 0;
-            let stockResultante;
-
-            if (tipo === 'ENTRADA') {
-                stockResultante = stockAnterior + cantidad;
-            } else if (tipo === 'SALIDA') {
-                if (cantidad > stockAnterior) {
-                    throw new Error(`Stock insuficiente para "${product.nombre}". Disponible: ${stockAnterior}.`);
-                }
-                stockResultante = stockAnterior - cantidad;
-            } else {
-                stockResultante = cantidad;
-            }
-
-            if (inventory) {
-                await Inventory.updateStock(connection, inventory.id_inventario, stockResultante);
-            } else {
-                await Inventory.createStock(connection, {
-                    id_producto,
-                    id_sucursal,
-                    stock_actual: stockResultante
-                });
-            }
-
-            const movementId = await Inventory.createMovement(connection, {
-                id_producto,
-                id_sucursal,
-                id_usuario: userId,
-                tipo,
-                cantidad: tipo === 'SALIDA' ? -cantidad : cantidad,
-                stock_anterior: stockAnterior,
-                stock_resultante: stockResultante,
-                motivo
-            });
-
-            await connection.commit();
-            return this.getMovementById(movementId);
-        } catch (error) {
-            await connection.rollback();
-            throw error;
-        } finally {
-            connection.release();
-        }
+        return this.getMovementById(Number(movementId));
     }
 
     static async adjustTotalStock({ id_producto, nuevo_stock, motivo }, userId) {
         this.validateAdjustData({ id_producto, nuevo_stock, motivo });
 
         const nuevoStock = Number(nuevo_stock);
+        const reason = motivo ? String(motivo).trim() : null;
 
-        const connection = await pool.getConnection();
-        try {
-            await connection.beginTransaction();
+        const product = await Product.findById(id_producto);
+        if (!product) throw new Error('El producto seleccionado no existe.');
 
-            const product = await Inventory.findProduct(connection, id_producto);
-            if (!product) throw new Error('El producto seleccionado no existe.');
+        const { data: inventories, error: listError } = await supabase
+            .from('inventario')
+            .select('id_inventario, id_sucursal, stock_actual')
+            .eq('id_producto', id_producto)
+            .order('id_sucursal');
+        if (listError) throw listError;
 
-            const inventories = await Inventory.findByProductForUpdate(connection, id_producto);
-            const currentTotal = inventories.reduce((sum, inv) => sum + inv.stock_actual, 0);
+        const inventoriesNumbered = inventories.map((inv) => ({
+            ...inv,
+            stock_actual: Number(inv.stock_actual)
+        }));
 
-            if (inventories.length === 0) {
-                const branchIds = await Inventory.findActiveBranchIds();
-                if (branchIds.length === 0) {
-                    throw new Error('No hay sucursales activas para asignar el stock.');
-                }
-                const idSucursal = branchIds[0];
-                await Inventory.createStock(connection, {
-                    id_producto,
-                    id_sucursal: idSucursal,
-                    stock_actual: nuevoStock
-                });
-                await Inventory.createMovement(connection, {
-                    id_producto,
-                    id_sucursal: idSucursal,
-                    id_usuario: userId,
-                    tipo: 'AJUSTE',
-                    cantidad: nuevoStock,
-                    stock_anterior: 0,
-                    stock_resultante: nuevoStock,
-                    motivo
-                });
-            } else {
-                if (nuevoStock === currentTotal) {
-                    await connection.commit();
-                    return { stock_actual: currentTotal, distribuido: false };
-                }
-                const targets = this.distributeStock(nuevoStock, inventories.map((inv) => inv.stock_actual));
-                for (let i = 0; i < inventories.length; i++) {
-                    const inv = inventories[i];
-                    const target = targets[i];
-                    if (target === inv.stock_actual) continue;
-                    const diff = target - inv.stock_actual;
-                    await Inventory.updateStock(connection, inv.id_inventario, target);
-                    await Inventory.createMovement(connection, {
-                        id_producto,
-                        id_sucursal: inv.id_sucursal,
-                        id_usuario: userId,
-                        tipo: 'AJUSTE',
-                        cantidad: diff,
-                        stock_anterior: inv.stock_actual,
-                        stock_resultante: target,
-                        motivo
-                    });
-                }
+        let distribucion = [];
+
+        if (inventoriesNumbered.length === 0) {
+            const branchIds = await Inventory.findActiveBranchIds();
+            if (branchIds.length === 0) {
+                throw new Error('No hay sucursales activas para asignar el stock.');
+            }
+            distribucion.push({
+                id_inventario: null,
+                id_sucursal: branchIds[0],
+                stock_anterior: 0,
+                nuevo_stock: nuevoStock,
+                cantidad: nuevoStock
+            });
+        } else {
+            const currentTotal = inventoriesNumbered.reduce(
+                (sum, inv) => sum + inv.stock_actual,
+                0
+            );
+
+            if (nuevoStock === currentTotal) {
+                return { stock_actual: currentTotal, distribuido: false };
             }
 
-            await connection.commit();
-            return { stock_actual: nuevoStock, distribuido: true };
-        } catch (error) {
-            await connection.rollback();
-            throw error;
-        } finally {
-            connection.release();
+            const targets = this.distributeStock(
+                nuevoStock,
+                inventoriesNumbered.map((inv) => inv.stock_actual)
+            );
+
+            inventoriesNumbered.forEach((inv, i) => {
+                const target = targets[i];
+                if (target === inv.stock_actual) return;
+                distribucion.push({
+                    id_inventario: inv.id_inventario,
+                    id_sucursal: inv.id_sucursal,
+                    stock_anterior: inv.stock_actual,
+                    nuevo_stock: target,
+                    cantidad: target - inv.stock_actual
+                });
+            });
         }
+
+        // Aplica todos los cambios de stock y sus movimientos de forma atomica.
+        const { error } = await supabase.rpc('ajustar_stock_total', {
+            p_id_producto: id_producto,
+            p_id_usuario: userId,
+            p_motivo: reason,
+            p_distribucion: distribucion
+        });
+        if (error) throw error;
+
+        return { stock_actual: nuevoStock, distribuido: true };
     }
 
     static validateAdjustData({ id_producto, nuevo_stock, motivo }) {
@@ -222,20 +186,12 @@ class InventoryService {
 
     static async updateStockMinimo({ id_producto, stock_minimo }) {
         this.validateStockMinimo({ id_producto, stock_minimo });
-        const connection = await pool.getConnection();
-        try {
-            await connection.beginTransaction();
-            const product = await Inventory.findProduct(connection, id_producto);
-            if (!product) throw new Error('El producto seleccionado no existe.');
-            await Product.updateStockMinimo(id_producto, Number(stock_minimo));
-            await connection.commit();
-            return { id_producto, stock_minimo: Number(stock_minimo) };
-        } catch (error) {
-            await connection.rollback();
-            throw error;
-        } finally {
-            connection.release();
-        }
+
+        const product = await Product.findById(id_producto);
+        if (!product) throw new Error('El producto seleccionado no existe.');
+
+        await Product.updateStockMinimo(id_producto, Number(stock_minimo));
+        return { id_producto, stock_minimo: Number(stock_minimo) };
     }
 
     static validateStockMinimo({ id_producto, stock_minimo }) {

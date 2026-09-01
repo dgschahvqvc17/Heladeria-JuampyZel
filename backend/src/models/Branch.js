@@ -1,67 +1,117 @@
-const pool = require('../config/database');
+const supabase = require('../config/supabase');
+const { unwrap } = require('../utils/unwrap');
 
 class Branch {
+    static async attachResponsable(branches) {
+        if (!branches.length) return branches;
+
+        const ids = branches
+            .map((b) => b.id_responsable)
+            .filter((id) => id !== null && id !== undefined);
+
+        const usersById = new Map();
+        if (ids.length > 0) {
+            const users = unwrap(
+                await supabase
+                    .from('usuario')
+                    .select('id_usuario, nombre, apellido')
+                    .in('id_usuario', ids)
+            );
+            users.forEach((u) => usersById.set(u.id_usuario, u));
+        }
+
+        return branches.map((b) => {
+            const user = b.id_responsable != null ? usersById.get(b.id_responsable) : null;
+            return {
+                ...b,
+                responsable: user ? `${user.nombre} ${user.apellido}` : null
+            };
+        });
+    }
+
     static async findAll() {
-        const [rows] = await pool.execute(
-            `SELECT s.id_sucursal, s.nombre, s.direccion, s.telefono, s.id_responsable,
-                    CONCAT(u.nombre, ' ', u.apellido) AS responsable, s.estado
-             FROM sucursal s
-             LEFT JOIN usuario u ON u.id_usuario = s.id_responsable
-             ORDER BY s.id_sucursal DESC`
+        const rows = unwrap(
+            await supabase
+                .from('sucursal')
+                .select('id_sucursal, nombre, direccion, telefono, id_responsable, estado')
+                .order('id_sucursal', { ascending: false })
         );
-        return rows;
+        return Branch.attachResponsable(rows);
     }
 
     static async findById(id) {
-        const [rows] = await pool.execute(
-            `SELECT s.id_sucursal, s.nombre, s.direccion, s.telefono, s.id_responsable,
-                    CONCAT(u.nombre, ' ', u.apellido) AS responsable, s.estado
-             FROM sucursal s
-             LEFT JOIN usuario u ON u.id_usuario = s.id_responsable
-             WHERE s.id_sucursal = ?`,
-            [id]
+        const row = unwrap(
+            await supabase
+                .from('sucursal')
+                .select('id_sucursal, nombre, direccion, telefono, id_responsable, estado')
+                .eq('id_sucursal', id)
+                .maybeSingle()
         );
-        return rows[0];
+        if (!row) return null;
+        return (await Branch.attachResponsable([row]))[0];
     }
 
     static async findByName(nombre) {
-        const [rows] = await pool.execute(
-            'SELECT id_sucursal, nombre, direccion, telefono, id_responsable, estado FROM sucursal WHERE nombre = ?',
-            [nombre]
+        return unwrap(
+            await supabase
+                .from('sucursal')
+                .select('id_sucursal, nombre, direccion, telefono, id_responsable, estado')
+                .eq('nombre', nombre)
+                .maybeSingle()
         );
-        return rows[0];
     }
 
     static async create({ nombre, direccion, telefono, id_responsable }) {
-        const [result] = await pool.execute(
-            'INSERT INTO sucursal (nombre, direccion, telefono, id_responsable) VALUES (?, ?, ?, ?)',
-            [nombre, direccion, telefono, id_responsable]
+        const data = unwrap(
+            await supabase
+                .from('sucursal')
+                .insert({
+                    nombre,
+                    direccion,
+                    telefono: telefono || null,
+                    id_responsable: id_responsable || null
+                })
+                .select('id_sucursal')
+                .single()
         );
-        return result.insertId;
+        return data.id_sucursal;
     }
 
     static async update(id, { nombre, direccion, telefono, id_responsable }) {
-        const [result] = await pool.execute(
-            'UPDATE sucursal SET nombre = ?, direccion = ?, telefono = ?, id_responsable = ? WHERE id_sucursal = ?',
-            [nombre, direccion, telefono, id_responsable, id]
+        const data = unwrap(
+            await supabase
+                .from('sucursal')
+                .update({
+                    nombre,
+                    direccion,
+                    telefono: telefono || null,
+                    id_responsable: id_responsable || null
+                })
+                .eq('id_sucursal', id)
+                .select('id_sucursal')
         );
-        return result.affectedRows;
+        return data.length;
     }
 
     static async updateStatus(id, estado) {
-        const [result] = await pool.execute(
-            'UPDATE sucursal SET estado = ? WHERE id_sucursal = ?',
-            [estado, id]
+        const data = unwrap(
+            await supabase
+                .from('sucursal')
+                .update({ estado })
+                .eq('id_sucursal', id)
+                .select('id_sucursal')
         );
-        return result.affectedRows;
+        return data.length;
     }
 
     static async findByResponsable(idResponsable) {
-        const [rows] = await pool.execute(
-            'SELECT id_sucursal, id_responsable FROM sucursal WHERE id_responsable = ?',
-            [idResponsable]
+        return unwrap(
+            await supabase
+                .from('sucursal')
+                .select('id_sucursal, id_responsable')
+                .eq('id_responsable', idResponsable)
+                .maybeSingle()
         );
-        return rows[0];
     }
 }
 

@@ -14,7 +14,7 @@ La aplicacion centraliza y administra las operaciones de la empresa: sucursales,
 | Graficas | Recharts (dashboard y reportes) |
 | Exportacion | jsPDF + jspdf-autotable (PDF), SheetJS xlsx (Excel) |
 | Backend | Node.js, Express.js, JavaScript |
-| Base de datos | MySQL (InnoDB) |
+| Base de datos | Supabase (PostgreSQL) |
 | Auth | bcrypt (hashing), JWT (tokens) |
 
 ## Arquitectura
@@ -26,7 +26,7 @@ Frontend (React)
     | HTTP / API REST
     v
 Backend (Express)
-    |-- Routes -> Controllers -> Services -> Models -> MySQL
+    |-- Routes -> Controllers -> Services -> Models -> Supabase (PostgreSQL)
     +-- Middlewares (auth, roles, errores)
 ```
 
@@ -66,11 +66,10 @@ juampyzel/
 |   |-- vite.config.js
 |   |-- tailwind.config.js
 |   +-- postcss.config.js
-|-- backend/                  -> Node.js + Express + MySQL
-|   |-- migrations/            -> Migraciones SQL versionadas
+|-- backend/                  -> Node.js + Express + Supabase
 |   |-- src/
 |   |   |-- config/
-|   |   |   |-- database.js     -> Pool de conexiones MySQL
+|   |   |   |-- supabase.js     -> Cliente Supabase (service role key)
 |   |   |   +-- jwt.js          -> Configuracion JWT
 |   |   |-- controllers/
 |   |   |   |-- authController.js -> Login, logout, me, cambiar contrasena
@@ -117,7 +116,7 @@ juampyzel/
 |   |   |   |-- authMiddleware.js -> Verificacion de JWT
 |   |   |   +-- roleMiddleware.js -> Verificacion de roles (HU02)
 |   |   |-- utils/
-|   |   |   +-- migrations.js     -> Runner de migraciones
+|   |   |   +-- unwrap.js        -> Helper para respuestas de Supabase
 |   |   |-- routes/
 |   |   |   |-- authRoutes.js     -> Endpoints /api/auth/*
 |   |   |   |-- userRoutes.js     -> Endpoints /api/users/* (HU02)
@@ -133,13 +132,14 @@ juampyzel/
 |   |   |   |-- storeRoutes.js    -> Endpoints /api/stores/* (HU06)
 |   |   |   +-- publicRoutes.js   -> Endpoints /api/public/*
 |   |   |-- app.js              -> Express app + middleware + rutas
-|   |   +-- server.js           -> Punto de entrada (ejecuta migraciones)
+|   |   +-- server.js           -> Punto de entrada (verifica conexion a Supabase)
 |   |-- .env                   -> Variables de entorno
 |   +-- package.json
+|-- supabase/
+|   |-- schema.sql             -> Esquema, vistas, RPC, RLS y datos semilla
+|   +-- README.md (opcional)
 |-- database/
-|   |-- schema.sql             -> Definicion de tablas
-|   |-- seed.sql               -> Datos semilla (bcrypt hashes)
-|   +-- README.md
+|   +-- README.md              -> Guia de la base de datos (apunta a supabase/schema.sql)
 |-- docs/
 |   |-- architecture.md
 |   |-- database.md
@@ -151,9 +151,6 @@ juampyzel/
 |   |-- frontend.md
 |   |-- project-context.md
 |   +-- sprints.md
-|-- juampyzel_database.sql     -> Script completo (schema + seed)
-|-- setup-database.bat         -> Script de setup (Windows CMD)
-|-- setup-database.ps1         -> Script de setup (PowerShell)
 |-- .gitignore
 +-- README.md
 ```
@@ -164,7 +161,7 @@ juampyzel/
 
 - **Node.js** v18+ (recomendado v20+)
 - **npm** (incluido con Node.js)
-- **MySQL** 8.0 (instalado mediante MySQL Installer / Workbench)
+- Un proyecto **Supabase** (PostgreSQL) con las credenciales API y Service Role
 
 ---
 
@@ -177,42 +174,19 @@ git clone <url-del-repositorio>
 cd Heladeria_JuampyZel
 ```
 
-### Paso 2: Configurar la base de datos
+### Paso 2: Crear y configurar la base de datos (Supabase)
 
-#### Opcion A: Ejecutar script automatico (Recomendado)
+1. Crear un proyecto en [Supabase](https://supabase.com/dashboard).
+2. Abrir **SQL Editor** y ejecutar el contenido de `supabase/schema.sql`
+   (crea tablas, vistas, funciones RPC, datos semilla y activa RLS).
+3. En la pestana **Project Settings -> API** copiar:
+   - **Project URL** -> `SUPABASE_URL`
+   - **Anon key** -> `SUPABASE_PUBLISHABLE_KEY`
+   - **Service Role key** -> `SUPABASE_SERVICE_ROLE_KEY`
 
-**Windows CMD:**
-
-```bash
-setup-database.bat
-```
-
-**PowerShell:**
-
-```powershell
-.\setup-database.ps1
-```
-
-El script:
-- Verifica que MySQL este instalado y accesible
-- Verifica la conexion a MySQL
-- Crea la base de datos `juampyzel` si no existe
-- Ejecuta el schema con todas las tablas
-- Inserta los datos semilla (usuarios, categorias)
-
-#### Opcion B: Ejecutar manualmente
-
-```bash
-mysql -u root -p < juampyzel_database.sql
-```
-
-#### Opcion C: Usar MySQL Workbench
-
-1. Abrir MySQL Workbench
-2. Conectarse a MySQL
-3. Ir a File -> Open SQL Script
-4. Seleccionar `juampyzel_database.sql`
-5. Ejecutar el script (boton de rayo)
+> La clave **Service Role** es sensible: se usa solo en el backend y nunca debe
+> exponerse en el frontend ni subirse al repositorio. El `.gitignore` ya excluye
+> `backend/.env` y `frontend/.env`.
 
 ### Paso 3: Configurar variables de entorno (Backend)
 
@@ -221,21 +195,31 @@ cd backend/
 cp .env.example .env
 ```
 
-Editar el archivo `.env` con tus credenciales de MySQL:
+Editar el archivo `.env` con las credenciales de Supabase:
 
 ```env
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_NAME=juampyzel
-DB_USER=root
-DB_PASSWORD=tu_password_aqui
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_PUBLISHABLE_KEY=<anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
 
 JWT_SECRET=juampyzel_secret_key_2024
 JWT_EXPIRES_IN=24h
 PORT=5000
 ```
 
-> **Nota:** Nunca comparta ni suba el archivo `.env` a GitHub. El `.gitignore` ya lo excluye.
+Y crear las variables del frontend:
+
+```bash
+cd ../frontend/
+cp .env.example .env
+```
+
+```env
+VITE_SUPABASE_URL=https://<project-ref>.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=<anon-key>
+```
+
+> **Nota:** Nunca comparta ni suba los archivos `.env` a GitHub. El `.gitignore` ya los excluye.
 
 ### Paso 4: Instalar dependencias
 
@@ -735,26 +719,32 @@ El modulo de **Reportes** (`/reportes`) permite consultar la informacion en tabl
 
 ---
 
-## Migraciones de base de datos
+## Esquema y funciones de la base de datos
 
-El backend incluye un sistema de **migraciones versionadas** que se ejecuta automaticamente al iniciar el servidor:
+El esquema se administra en `supabase/schema.sql` y se aplica **una sola vez**
+desde el **SQL Editor** de Supabase (o con `supabase db push`):
 
-- Cada migracion es un archivo `.sql` en `backend/migrations/`.
-- Se registran en la tabla `schema_migrations` y solo se aplican las pendientes.
-- Para anadir un cambio de esquema, crea un nuevo archivo `backend/migrations/<fecha>_<nombre>.sql`.
+- Todas las tablas con sus constraints, indices y relaciones.
+- **Vistas** para consultas con joins y agregaciones (`vista_ventas`, `vista_pedidos`,
+  `vista_stock_producto`, `vista_catalogo_productos`, `vista_movimientos`, `vista_alertas`, ...).
+- **Funciones RPC** (`plpgsql`) para operaciones atomicas y reportes
+  (`registrar_venta`, `registrar_pedido`, `actualizar_estado_pedido`,
+  `registrar_movimiento_inventario`, `ajustar_stock_total`, `generar_alertas_stock`, `reporte_*`).
+- Datos semilla (usuarios y categorias) insertados solo si las tablas estan vacias.
+- **RLS** habilitado en todas las tablas.
 
-```text
-backend/
-|-- migrations/
-|   |-- 202608270001_add_responsable_fk.sql
-|   |-- 202608290001_crear_movimiento_inventario.sql
-|   +-- 202608300003_seed_usuarios_categorias_iniciales.sql
-+-- src/utils/migrations.js   -> Runner de migraciones
-```
+Los Models del backend invocan las funciones RPC para las transacciones
+(`supabase.rpc(...)`); no hay migraciones versionadas ni transacciones manuales en Node.
+
+Para anadir un cambio de esquema, edita `supabase/schema.sql` y aplica un script
+`ALTER` en el SQL Editor (o gestiona un segundo archivo de migracion en `supabase/`).
 
 ### Seed automatico de usuarios y categorias
 
-En la **primera ejecucion** del servidor, si la base de datos no tiene datos (tablas `usuario` y `categoria` vacias), una migracion de seed inserta automaticamente los **usuarios iniciales** y las **categorias base**. Esto garantiza que el sistema arranque siempre con las credenciales del README disponibles sin necesidad de ejecutar `seed.sql` manualmente.
+Al ejecutar `supabase/schema.sql`, si las tablas `usuario` y `categoria` estan
+vacias, se insertan automaticamente los **usuarios iniciales** y las **categorias
+base**. Esto garantiza que el sistema arranque siempre con las credenciales del
+README disponibles sin pasos adicionales.
 
 El seed se aplica solo cuando las tablas estan vacias (no duplica ni pisa datos existentes).
 
@@ -782,10 +772,12 @@ detalle_pedido  -> Productos de cada pedido
 
 ### Script SQL
 
-El archivo `juampyzel_database.sql` contiene:
+El archivo `supabase/schema.sql` contiene:
 
-- Creacion de la base de datos `juampyzel`
-- Todas las tablas con relaciones y constraints
+- Todas las tablas con relaciones, constraints e indices
+- Vistas para consultas con agregaciones
+- Funciones RPC (transacciones atomicas y reportes)
+- RLS (Row Level Security) y politicas de solo lectura del catalogo
 - Datos semilla (usuarios, categorias)
 
 ---
@@ -813,24 +805,27 @@ El archivo `juampyzel_database.sql` contiene:
 
 ## Solucion de problemas
 
-### MySQL no se encuentra
+### La base de datos no se ha cargado
+
+Si en el login no aparecen las estadisticas publicas o la API responde con errores
+`relation "xxx" does not exist` / `PGRST301`:
+
+**Solucion:**
+1. Verificar que el esquema de `supabase/schema.sql` se ejecuto sin errores en el SQL Editor.
+2. Verificar que `SUPABASE_URL` este configurado en el backend.
+3. Verificar que las tablas existan en **Table Editor** y que el schema sea `public`.
+
+### Error de conexion a Supabase
 
 ```
-[ERROR] MySQL no se encuentra en el PATH.
-```
-
-**Solucion:** Instalar MySQL 8.0 desde https://dev.mysql.com/downloads/installer/ y agregar la ruta al PATH.
-
-### Error de conexion a MySQL
-
-```
-[ERROR] No se pudo conectar a MySQL.
+[Supabase] No se pudo conectar. Verifica SUPABASE_URL y la clave API.
 ```
 
 **Solucion:**
-1. Verificar que el servicio de MySQL este ejecutandose
-2. Verificar las credenciales en `.env`
-3. Probar conexion: `mysql -u root -p`
+1. Verificar que `SUPABASE_URL` y las claves esten bien copiadas en `backend/.env`.
+2. Confirmar que la SERVICE ROLE key este configurada (si falta, el backend
+   degrada a la publishable key y podra fallar en operaciones de escritura).
+3. En **Project Settings -> API**, regenere las claves si es necesario.
 
 ### Puerto 5000 ocupado
 
