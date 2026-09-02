@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { getBranches } from '../../services/branchService';
-import { getCustomers } from '../../services/customerService';
+import { getCustomers, createCustomer } from '../../services/customerService';
 import {
     getSales,
     getSaleById,
@@ -27,6 +27,9 @@ const TrashIcon = () => (
 const CartIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" /><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" /></svg>
 );
+const PlusIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+);
 
 const EMPTY_CART = [];
 
@@ -47,6 +50,10 @@ export default function Ventas() {
     const [loadingSales, setLoadingSales] = useState(true);
     const [showDetail, setShowDetail] = useState(null);
     const [detailLoading, setDetailLoading] = useState(false);
+    const [showCustomerForm, setShowCustomerForm] = useState(false);
+    const [customerForm, setCustomerForm] = useState({ nombres: '', apellidos: '' });
+    const [customerFormError, setCustomerFormError] = useState('');
+    const [customerSubmitting, setCustomerSubmitting] = useState(false);
 
     useEffect(() => {
         const load = async () => {
@@ -171,6 +178,54 @@ export default function Ventas() {
         setCart(EMPTY_CART);
         setSelectedCustomer('');
         setSearch('');
+    };
+
+    const openCustomerForm = () => {
+        setCustomerForm({ nombres: '', apellidos: '' });
+        setCustomerFormError('');
+        setShowCustomerForm(true);
+    };
+
+    const closeCustomerForm = () => {
+        setShowCustomerForm(false);
+        setCustomerFormError('');
+    };
+
+    const handleCustomerFormChange = (e) => {
+        const { name, value } = e.target;
+        setCustomerForm((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const validateCustomerForm = () => {
+        const nombres = customerForm.nombres.trim();
+        const apellidos = customerForm.apellidos.trim();
+        if (!nombres) return 'Los nombres son obligatorios.';
+        if (nombres.length < 2) return 'Los nombres deben tener al menos 2 caracteres.';
+        if (!apellidos) return 'Los apellidos son obligatorios.';
+        if (apellidos.length < 2) return 'Los apellidos deben tener al menos 2 caracteres.';
+        return '';
+    };
+
+    const handleCustomerCreate = async (e) => {
+        e.preventDefault();
+        const error = validateCustomerForm();
+        if (error) { setCustomerFormError(error); return; }
+
+        try {
+            setCustomerSubmitting(true);
+            setCustomerFormError('');
+            const response = await createCustomer({
+                nombres: customerForm.nombres.trim(),
+                apellidos: customerForm.apellidos.trim()
+            });
+            setCustomers((prev) => [...prev, response.data]);
+            setSelectedCustomer(String(response.data.id_cliente));
+            closeCustomerForm();
+        } catch (err) {
+            setCustomerFormError(err.message || 'Error al crear el cliente.');
+        } finally {
+            setCustomerSubmitting(false);
+        }
     };
 
     const handleConfirm = async (e) => {
@@ -322,18 +377,27 @@ export default function Ventas() {
 
                     <div className="p-5">
                         <label className="block text-sm font-medium text-text-primary mb-2">Cliente (opcional)</label>
-                        <select
-                            value={selectedCustomer}
-                            onChange={(e) => setSelectedCustomer(e.target.value)}
-                            className="w-full px-4 py-3 rounded-input border border-border bg-white/60 focus:ring-2 focus:ring-primary outline-none"
-                        >
-                            <option value="">Cliente por defecto / mostrador</option>
-                            {customers.map((customer) => (
-                                <option key={customer.id_cliente} value={customer.id_cliente}>
-                                    {customer.nombres} {customer.apellidos}
-                                </option>
-                            ))}
-                        </select>
+                        <div className="flex gap-2">
+                            <select
+                                value={selectedCustomer}
+                                onChange={(e) => setSelectedCustomer(e.target.value)}
+                                className="w-full px-4 py-3 rounded-input border border-border bg-white/60 focus:ring-2 focus:ring-primary outline-none"
+                            >
+                                <option value="">Cliente por defecto / mostrador</option>
+                                {customers.map((customer) => (
+                                    <option key={customer.id_cliente} value={customer.id_cliente}>
+                                        {customer.nombres} {customer.apellidos}
+                                    </option>
+                                ))}
+                            </select>
+                            <button
+                                type="button"
+                                onClick={openCustomerForm}
+                                className="flex items-center gap-1 px-3 py-2.5 rounded-input border border-primary/40 text-primary text-sm font-medium hover:bg-primary/5 transition-colors whitespace-nowrap"
+                            >
+                                <PlusIcon /> Nuevo
+                            </button>
+                        </div>
                     </div>
 
                     <div className="px-5 max-h-[280px] overflow-y-auto">
@@ -435,6 +499,53 @@ export default function Ventas() {
                     </div>
                 )}
             </div>
+
+            {/* Modal de nuevo cliente */}
+            {showCustomerForm && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+                    <div className="glass-card rounded-card w-full max-w-md p-6 animate-scale-in">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-lg font-title font-bold text-text-primary">Nuevo Cliente</h3>
+                            <button onClick={closeCustomerForm} className="p-2 rounded-xl hover:bg-primary/10"><CloseIcon /></button>
+                        </div>
+                        {customerFormError && <div className="p-3 mb-4 rounded-input bg-error/10 border border-error text-error text-sm">{customerFormError}</div>}
+                        <form onSubmit={handleCustomerCreate}>
+                            <div className="space-y-4 mb-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-text-primary mb-2">Nombres *</label>
+                                    <input
+                                        type="text"
+                                        name="nombres"
+                                        placeholder="Nombre(s)"
+                                        value={customerForm.nombres}
+                                        onChange={handleCustomerFormChange}
+                                        className="w-full px-4 py-3 rounded-input border border-border bg-white/60 focus:ring-2 focus:ring-primary focus:outline-none"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-text-primary mb-2">Apellidos *</label>
+                                    <input
+                                        type="text"
+                                        name="apellidos"
+                                        placeholder="Apellido(s)"
+                                        value={customerForm.apellidos}
+                                        onChange={handleCustomerFormChange}
+                                        className="w-full px-4 py-3 rounded-input border border-border bg-white/60 focus:ring-2 focus:ring-primary focus:outline-none"
+                                    />
+                                </div>
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={customerSubmitting}
+                                className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-btn bg-gradient-to-r from-primary to-secondary text-white font-medium text-sm shadow-md hover:brightness-110 disabled:opacity-70 transition-all"
+                            >
+                                {customerSubmitting && <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>}
+                                {customerSubmitting ? 'Guardando...' : 'Guardar Cliente'}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             {/* Modal de detalle */}
             {showDetail && (
