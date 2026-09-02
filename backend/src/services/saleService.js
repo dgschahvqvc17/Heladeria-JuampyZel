@@ -45,7 +45,7 @@ class SaleService {
         const { data, error } = await supabase.rpc('registrar_venta', {
             p_id_cliente: id_cliente || null,
             p_id_usuario: userId,
-            p_id_sucursal,
+            p_id_sucursal: id_sucursal,
             p_total: total,
             p_detalles: items
         });

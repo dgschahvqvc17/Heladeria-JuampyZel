@@ -42,7 +42,7 @@ class InventoryService {
         // Actualiza stock y registra el movimiento de forma atomica.
         const { data: movementId, error } = await supabase.rpc('registrar_movimiento_inventario', {
             p_id_producto: id_producto,
-            p_id_sucursal,
+            p_id_sucursal: id_sucursal,
             p_id_usuario: userId,
             p_tipo: tipo,
             p_cantidad: cantidad,
