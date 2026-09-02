@@ -98,6 +98,31 @@ class Order {
             stock_disponible: Number(p.stock_disponible)
         }));
     }
+
+    static async findStoreNotifications(storeId) {
+        const pedidos = unwrap(
+            await supabase
+                .from('pedido')
+                .select('id_pedido, historial_pedido(id_historial, estado_anterior, estado_nuevo, fecha_cambio)')
+                .eq('id_tienda', storeId)
+        );
+
+        const notifications = [];
+        for (const pedido of pedidos) {
+            for (const h of pedido.historial_pedido || []) {
+                notifications.push({
+                    id_notificacion: h.id_historial,
+                    id_pedido: pedido.id_pedido,
+                    estado_anterior: h.estado_anterior,
+                    estado_nuevo: h.estado_nuevo,
+                    fecha_cambio: h.fecha_cambio
+                });
+            }
+        }
+
+        notifications.sort((a, b) => new Date(b.fecha_cambio) - new Date(a.fecha_cambio));
+        return notifications;
+    }
 }
 
 module.exports = Order;

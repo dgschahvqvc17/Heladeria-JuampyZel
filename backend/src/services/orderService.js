@@ -30,6 +30,14 @@ class OrderService {
         return Order.getCatalog();
     }
 
+    static async getNotifications(requester) {
+        if (requester.rol !== 'TIENDA') {
+            throw new Error('Solo las tiendas tienen notificaciones de pedidos.');
+        }
+        const store = await this.getStoreForUser(requester.id_usuario);
+        return Order.findStoreNotifications(store.id_tienda);
+    }
+
     static async create({ detalles }, userId) {
         const store = await this.getStoreForUser(userId);
         this.validateStructure(detalles);

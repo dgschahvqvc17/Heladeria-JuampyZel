@@ -11,6 +11,7 @@ import Productos from '../pages/Productos/Productos';
 import Ventas from '../pages/Ventas/Ventas';
 import Pedidos from '../pages/Pedidos/Pedidos';
 import Tienda from '../pages/Tienda/Tienda';
+import Notificaciones from '../pages/Notificaciones/Notificaciones';
 import Inventario from '../pages/Inventario/Inventario';
 import Alertas from '../pages/Alertas/Alertas';
 import Reportes from '../pages/Reportes/Reportes';
@@ -36,6 +37,7 @@ export default function AppRoutes() {
                     <Route path="/pedidos" element={<Pedidos />} />
                     <Route path="/inventario" element={<Inventario />} />
                     <Route path="/tienda" element={<Tienda />} />
+                    <Route path="/notificaciones" element={<Notificaciones />} />
                     <Route path="/alertas" element={<Alertas />} />
                     <Route path="/reportes" element={<Reportes />} />
                     <Route path="/configuracion" element={<MiPerfil />} />

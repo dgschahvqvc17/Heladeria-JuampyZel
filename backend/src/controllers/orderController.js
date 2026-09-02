@@ -29,6 +29,15 @@ class OrderController {
         }
     }
 
+    static async getNotifications(req, res) {
+        try {
+            const notifications = await OrderService.getNotifications(req.user);
+            res.status(200).json({ success: true, data: notifications });
+        } catch (error) {
+            res.status(500).json({ success: false, message: error.message || 'Error al obtener las notificaciones.' });
+        }
+    }
+
     static async create(req, res) {
         try {
             const order = await OrderService.create(req.body, req.user.id_usuario);

@@ -11,6 +11,9 @@ const MANAGEMENT_ROLES = ['ADMINISTRADOR', 'ENCARGADO_SUCURSAL', 'INVENTARIO'];
 // ven todos; la tienda consulta únicamente sus propios pedidos.
 router.get('/', authMiddleware, roleMiddleware([...MANAGEMENT_ROLES, 'TIENDA']), OrderController.getAll);
 
+// Notificaciones de estado de pedidos: únicamente la tienda.
+router.get('/notifications', authMiddleware, roleMiddleware(['TIENDA']), OrderController.getNotifications);
+
 // Catálogo de productos disponibles para la tienda.
 // Se define antes de /:id para no ser confundido con un id.
 router.get('/catalog/products', authMiddleware, roleMiddleware(['TIENDA']), OrderController.getCatalog);

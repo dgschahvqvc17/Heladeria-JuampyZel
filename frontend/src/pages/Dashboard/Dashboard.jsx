@@ -127,6 +127,7 @@ const navItems = [
     { icon: <StoreBagIcon />, label: 'Tiendas', path: '/tiendas', roles: ['ADMINISTRADOR', 'INVENTARIO'] },
     { icon: <ShoppingCartIcon />, label: 'Pedidos', path: '/pedidos', roles: ['ADMINISTRADOR', 'ENCARGADO_SUCURSAL', 'INVENTARIO'] },
     { icon: <StoreBagIcon />, label: 'Portal Tienda', path: '/tienda', roles: ['TIENDA'] },
+    { icon: <BellIcon />, label: 'Notificaciones', path: '/notificaciones', roles: ['TIENDA'] },
     { icon: <CustomersIcon />, label: 'Clientes', path: '/clientes', roles: ['ADMINISTRADOR', 'ENCARGADO_SUCURSAL', 'VENDEDOR', 'INVENTARIO'] },
     { icon: <DollarIcon />, label: 'Ventas', path: '/ventas', roles: ['ADMINISTRADOR', 'ENCARGADO_SUCURSAL', 'VENDEDOR'] },
     { icon: <PackageIcon />, label: 'Inventario', path: '/inventario', roles: ['ADMINISTRADOR', 'INVENTARIO'] },

@@ -15,6 +15,13 @@ export async function getOrders() {
     return data;
 }
 
+export async function getNotifications() {
+    const response = await fetch(`${API_URL}/orders/notifications`, { headers: getAuthHeaders() });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || 'Error al obtener las notificaciones.');
+    return data;
+}
+
 export async function getOrderById(id) {
     const response = await fetch(`${API_URL}/orders/${id}`, { headers: getAuthHeaders() });
     const data = await response.json();

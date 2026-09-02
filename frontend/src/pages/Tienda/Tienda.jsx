@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getCatalog, createOrder, getOrders, getOrderById } from '../../services/orderService';
 import { getImageUrl } from '../../services/productService';
@@ -56,6 +57,7 @@ const getStatusStyle = (estado) => {
 
 export default function Tienda() {
     const { user } = useAuth();
+    const location = useLocation();
     const [tab, setTab] = useState('catalogo');
 
     const [products, setProducts] = useState([]);
@@ -101,6 +103,15 @@ export default function Tienda() {
     useEffect(() => {
         loadCatalog();
     }, []);
+
+    useEffect(() => {
+        if (location.state?.openTab) {
+            setTab(location.state.openTab);
+            loadOrders();
+            window.history.replaceState({}, '');
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.state]);
 
     const categories = useMemo(() => {
         const cats = [...new Set(products.map((p) => p.categoria_nombre).filter(Boolean))];
@@ -171,6 +182,32 @@ export default function Tienda() {
                     : item
             );
         });
+    };
+
+    const updateCartQuantity = (id_producto, value) => {
+        const quantity = Number(value);
+        if (value === '' || Number.isNaN(quantity)) {
+            setCart((prev) => prev.map((item) => item.id_producto === id_producto ? { ...item, cantidad: '' } : item));
+            return;
+        }
+        const item = cart.find((i) => i.id_producto === id_producto);
+        const max = item ? item.stock_disponible : quantity;
+        const clamped = Math.min(Math.max(Math.trunc(quantity), 1), max);
+        setCart((prev) => prev.map((item) => item.id_producto === id_producto ? { ...item, cantidad: clamped } : item));
+    };
+
+    const onCartQuantityChange = (id_producto, value) => {
+        updateCartQuantity(id_producto, value);
+    };
+
+    const onCartQuantityBlur = (id_producto) => {
+        const item = cart.find((i) => i.id_producto === id_producto);
+        if (!item) return;
+        const current = Number(item.cantidad);
+        const valid = Number.isInteger(current) && current >= 1 && current <= item.stock_disponible;
+        if (!valid) {
+            setCart((prev) => prev.map((i) => i.id_producto === id_producto ? { ...i, cantidad: 1 } : i));
+        }
     };
 
     const removeFromCart = (id_producto) => {
@@ -465,7 +502,15 @@ export default function Tienda() {
                                                         >
                                                             <MinusIcon />
                                                         </button>
-                                                        <span className="text-xs font-bold text-primary w-5 text-center">{item.cantidad}</span>
+                                                        <input
+                                                            type="number"
+                                                            min="1"
+                                                            max={item.stock_disponible}
+                                                            value={item.cantidad}
+                                                            onChange={(e) => onCartQuantityChange(item.id_producto, e.target.value)}
+                                                            onBlur={() => onCartQuantityBlur(item.id_producto)}
+                                                            className="w-10 h-8 text-center text-xs font-bold text-primary rounded-md border border-border bg-white/60 focus:outline-none focus:ring-2 focus:ring-primary px-1"
+                                                        />
                                                         <button
                                                             onClick={() => {
                                                                 if (item.cantidad < item.stock_disponible) {
@@ -609,7 +654,15 @@ export default function Tienda() {
                                                     >
                                                         <MinusIcon />
                                                     </button>
-                                                    <span className="text-sm font-bold text-primary w-6 text-center">{item.cantidad}</span>
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        max={item.stock_disponible}
+                                                        value={item.cantidad}
+                                                        onChange={(e) => onCartQuantityChange(item.id_producto, e.target.value)}
+                                                        onBlur={() => onCartQuantityBlur(item.id_producto)}
+                                                        className="w-10 h-7 text-center text-sm font-bold text-primary rounded-md border border-border bg-white/60 focus:outline-none focus:ring-2 focus:ring-primary px-1"
+                                                    />
                                                     <button
                                                         onClick={() => {
                                                             if (item.cantidad < item.stock_disponible) {
