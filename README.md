@@ -17,6 +17,37 @@ La aplicacion centraliza y administra las operaciones de la empresa: sucursales,
 | Base de datos | Supabase (PostgreSQL) |
 | Auth | bcrypt (hashing), JWT (tokens) |
 
+## Aplicacion desplegada
+
+El proyecto esta **desplegado y funcionando en produccion**:
+
+| Recurso | URL |
+|--------|-----|
+| **Frontend (Vercel)** | [https://heladeria-juampy-ecuctq3zs-jesiel1.vercel.app/login](https://heladeria-juampy-ecuctq3zs-jesiel1.vercel.app/login) |
+| **Backend (Render)** | [https://heladeria-juampyzel.onrender.com/api](https://heladeria-juampyzel.onrender.com/api) |
+| **Repositorio (GitHub)** | [https://github.com/dgschahvqvc17/Heladeria-JuampyZel](https://github.com/dgschahvqvc17/Heladeria-JuampyZel) |
+| **Base de datos** | Supabase (PostgreSQL) en la nube |
+
+> El frontend de Vercel apunta a la API del backend desplegado en Render
+> (`VITE_API_URL=https://heladeria-juampyzel.onrender.com/api`). No es necesario
+> configurar nada: **entra directo al link de Vercel y usa las credenciales del
+> manual y de la tabla de abajo.**
+
+---
+
+## Equipo de desarrollo
+
+Proyecto desarrollado con **Scrum** a lo largo de 3 sprints (roles: **Developer
+Full Stack - Scrum Master** y **Developer Full Stack**).
+
+| Rol | Nombre | GitHub |
+|-----|--------|--------|
+| Developer Full Stack / Scrum Master | **Adam Jesiel Velasco Villanueva** | [github.com/dgschahvqvc17](https://github.com/dgschahvqvc17) |
+| Developer Full Stack | **Diego Adrian Selaya Molina** | [github.com/DiegoSM29](https://github.com/DiegoSM29) |
+| Developer Full Stack | **Marcelo Sammy Sivila Sanchez** | [github.com/Marce0c0](https://github.com/Marce0c0) |
+
+---
+
 ## Arquitectura
 
 El sistema sigue una arquitectura **MVC con capa de Services**:
@@ -170,7 +201,7 @@ juampyzel/
 ### Paso 1: Clonar el repositorio
 
 ```bash
-git clone <url-del-repositorio>
+git clone https://github.com/dgschahvqvc17/Heladeria-JuampyZel.git
 cd Heladeria_JuampyZel
 ```
 
@@ -257,6 +288,11 @@ Abrir en el navegador:
 http://localhost:5173
 ```
 
+> **¿Quieres probar la version desplegada en lugar de montar el codigo?** Entra
+> directo a [https://heladeria-juampy-ecuctq3zs-jesiel1.vercel.app/login](https://heladeria-juampy-ecuctq3zs-jesiel1.vercel.app/login)
+> y usa las credenciales del manual. El backend y la base de datos ya estan en
+> produccion (Render + Supabase).
+
 ---
 
 ## Credenciales iniciales
@@ -268,6 +304,102 @@ http://localhost:5173
 | `encargado2@juampyzel.com` | `encargado123` | ENCARGADO_SUCURSAL |
 | `vendedor@juampyzel.com` | `vendedor123` | VENDEDOR |
 | `inventario@juampyzel.com` | `inventario123` | INVENTARIO |
+| `alaco@gmail.com` | `admin123` | TIENDA |
+
+---
+
+## Manual de uso de la aplicacion desplegada
+
+Estas son las instrucciones para usar la aplicacion **ya desplegada**, tanto desde
+el link de produccion (Vercel) como de forma **visual** recorriendo cada modulo.
+Todas las cuentas de la tabla anterior estan listas para probar.
+
+### 1) Acceso desde el link de produccion
+
+1. Abre en el navegador el frontend desplegado:
+   [https://heladeria-juampy-ecuctq3zs-jesiel1.vercel.app/login](https://heladeria-juampy-ecuctq3zs-jesiel1.vercel.app/login)
+2. La pantalla de **login** muestra estadisticas publicas del negocio (sabores,
+   sucursales y clientes) cargadas desde el backend de Render.
+3. Ingresa las credenciales de la tabla **Credenciales iniciales** según el rol
+   que quieras probar y pulsa **Iniciar sesion**.
+4. Según el rol, seras dirigido al **Dashboard** o al **Portal de Tienda**.
+
+> No hace falta configurar nada: la app ya apunta al backend y la base de datos
+> de produccion.
+
+### 2) Manual de uso visual (recorrido por modulos)
+
+A continuacion, un guion para **probar toda la app** entrando con el rol adecuado.
+
+#### a) Administrador (acceso total)
+```text
+admin@juampyzel.com / admin123
+```
+
+- **Dashboard** (`/`): KPIs y graficas (ventas por sucursal, pedidos por estado,
+  productos por categoria) y panel de productos con bajo stock.
+- **Usuarios** (`/usuarios`): listar, buscar, crear, editar y activar/desactivar
+  usuarios y asignar roles (ADMINISTRADOR, ENCARGADO_SUCURSAL, VENDEDOR,
+  INVENTARIO, TIENDA).
+- **Sucursales** (`/sucursales`): gestionar sucursales y asignar su responsable.
+- **Clientes** (`/clientes`): listar, buscar y registrar clientes.
+- **Ventas** (`/ventas`): punto de venta: seleccionar sucursal, anadir productos
+  al carrito con la cantidad, elegir (o crear +) un cliente y registrar la venta
+  (descuenta stock automaticamente).
+- **Pedidos** (`/pedidos`): ver los pedidos de las tiendas y mover su estado
+  (PENDIENTE → CONFIRMADO → PREPARANDO → LISTO → ENTREGADO / CANCELADO).
+- **Inventario** (`/inventario`): stock por producto, registrar movimientos
+  (ENTRADA / SALIDA / AJUSTE), editar el stock total y el stock minimo.
+- **Alertas** (`/alertas`): productos con stock bajo y marcar alertas como atendidas.
+- **Productos** (`/productos`) y **Categorias** (`/categorias`): catalogo tipo
+  marketplace y gestion de categorias.
+- **Reportes** (`/reportes`): reportes de ventas, pedidos, productos e inventario
+  filtrables y exportables a **PDF / Excel**.
+- **Tiendas** (`/tiendas`): gestionar las tiendas que piden abastecimiento.
+- **Mi Perfil** (`/configuracion`): ver tus datos y cambiar la contrasena.
+
+#### b) Encargado de sucursal
+```text
+encargado@juampyzel.com / encargado123     (o encargado2@juampyzel.com)
+```
+Ve su **Dashboard**, registra **Ventas**, gestiona **Pedidos** (estados) e
+**Inventario** de su sucursal.
+
+#### c) Vendedor
+```text
+vendedor@juampyzel.com / vendedor123
+```
+Puede registar **Ventas** y consultar **Clientes** (crea un cliente rapido con
+`+ Nuevo` en el modal de venta) y su **Dashboard**.
+
+#### d) Inventario
+```text
+inventario@juampyzel.com / inventario123
+```
+Gestiona **Inventario** (movimientos, ajuste de stock), **Alertas** y los
+**Pedidos** durante su preparacion/despacho.
+
+#### e) Tienda (portal de la tienda)
+```text
+alaco@gmail.com / admin123
+```
+Accede al **Portal de Tienda** (`/tienda`), donde:
+- Ve el **catalogo** de productos con su stock disponible.
+- Arma un **pedido de abastecimiento**: anade productos al carrito, edita la
+  cantidad directamente en el campo de numero y envia el pedido.
+- Revisa **Mis Pedidos** con su estado actual.
+- Visita la pagina **Notificaciones** (`/notificaciones`) para ver los cambios de
+  estado que han hecho sobre sus pedidos (solo las tiendas tienen este modulo).
+
+### 3) Notas finales
+
+- La cantidad de cada producto en el carrito de **Tienda** es **editable** con
+  los botones +/− o escribiendo el numero directamente (no puede superar el stock
+  disponible).
+- Los cambios de estado de los pedidos generan **notificaciones** visibles para
+  la tienda en la pagina de Notificaciones.
+- Todo funciona contra la **base de datos de produccion**, asi que los datos que
+  registres se guardan en Supabase.
 
 ---
 
@@ -845,12 +977,42 @@ npm run dev -- --port 3000
 
 ---
 
-## Documentacion adicional
+## Documentacion del proyecto
 
-- [Arquitectura del sistema](docs/architecture.md)
-- [Base de datos](docs/database.md)
-- [API REST](docs/api.md)
-- [Plan de sprints](rules/sprints.md)
-- [Especificaciones backend](rules/backend.md)
-- [Especificaciones frontend](rules/frontend.md)
-- [Normas de codigo](rules/coding-standards.md)
+El proyecto cuenta con documentacion completa organizada en varias carpetas.
+Aqui tienes la guia de que documenta cada archivo y donde encontrarlo:
+
+### Documentacion tecnica principal
+
+| Documento | Ubicacion | Contenido |
+|-----------|-----------|-----------|
+| **Manual de uso** | `README.md` (arriba) | Guia de la app desplegada y recorrido por modulos |
+| **Guia de instalacion** | `README.md` (arriba) | Paso a paso para montar el proyecto localmente |
+| **Arquitectura** | [docs/architecture.md](docs/architecture.md) | MVC, capas, flujos y estructura de codigo |
+| **Base de datos** | [docs/database.md](docs/database.md) | Esquema, tablas, vistas y RPC de Supabase |
+| **API REST** | [docs/api.md](docs/api.md) | Todos los endpoints, parametros y ejemplos |
+
+### Reglas y proceso de desarrollo
+
+| Documento | Ubicacion | Contenido |
+|-----------|-----------|-----------|
+| **Plan de sprints** | [rules/sprints.md](rules/sprints.md) | Planificacion de los 3 sprints con historias |
+| **Contexto del proyecto** | [rules/project-context.md](rules/project-context.md) | Objetivo, alcance y contexto del sistema |
+| **Arquitectura (reglas)** | [rules/architecture.md](rules/architecture.md) | Reglas de arquitectura a seguir |
+| **Backend (reglas)** | [rules/backend.md](rules/backend.md) | Especificaciones y buenas practicas del backend |
+| **Frontend (reglas)** | [rules/frontend.md](rules/frontend.md) | Especificaciones y buenas practicas del frontend |
+| **Normas de codigo** | [rules/coding-standards.md](rules/coding-standards.md) | Estilo y convenciones del codigo |
+
+### Esquema y base de datos
+
+- **Esquema SQL completo** -> [supabase/schema.sql](supabase/schema.sql): tablas,
+  vistas, funciones RPC, datos semilla y RLS.
+- **Guia de la base de datos** -> [database/README.md](database/README.md): apunta
+  al esquema y explica como se administra.
+
+### Historias de usuario
+
+Todas las historias planificadas estan **implementadas** (ver tabla en la seccion
+**Historias de usuario implementadas**). El sistema ademas incluye extras como el
+modulo **Mi Perfil** y las **estadisticas publicas** del login, y la documentacion
+de cada modulo referencia su HU (HU01 a HU12) para trazabilidad.
